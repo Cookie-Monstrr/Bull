@@ -99,8 +99,8 @@ const DEFAULT_ITEMS = [
     { id: "lonely", label: "Home Alone, Unstructured Time", list: "prev", kind: "risk", weight: "high", freq: "daily" },
     { id: "junk", label: "Junk Food", list: "prev", kind: "risk", weight: "med", freq: "daily" },
     { id: "caffeine", label: "Caffeine", list: "prev", kind: "risk", weight: "med", freq: "daily" },
-    { id: "coldplunge", label: "Cold Plunge", sub: "1–3 min cold exposure", list: "prev", kind: "habit", weight: "med", freq: "daily" },
-    { id: "nasalclear", label: "Nasal Rinse", sub: "Clear airway before bed", list: "prev", kind: "habit", weight: "med", freq: "daily" },
+    { id: "coldplunge", label: "Cold Plunge", list: "prev", kind: "habit", weight: "med", freq: "daily" },
+    { id: "nasalclear", label: "Nasal Rinse", list: "prev", kind: "habit", weight: "med", freq: "daily" },
     { id: "contentAccess", label: "Content Access", sub: "Low / Medium / High, logged daily", list: "prev", kind: "tier", weight: "high" },
     { id: "checkout", label: "Checking Out Women", sub: "None / A Few / A Lot, logged daily", list: "prev", kind: "tier", weight: "high" },
     { id: "recoveryLow", label: "Recovery Below 40%", sub: "Auto — from your Recovery Score", list: "prev", kind: "derived", weight: "med" },
@@ -108,13 +108,13 @@ const DEFAULT_ITEMS = [
     { id: "purposeHigh", label: "High-Purpose Day (4–5)", sub: "Auto — protective, from your Evening Review", list: "prev", kind: "derived", weight: "med" },
     { id: "accountabilityGap", label: "Accountability Not On Track", sub: "Auto — nothing booked, overdue, or too far out", list: "prev", kind: "derived", weight: "high" },
     { id: "urgeSurvivalBonus", label: "Urges Survived Today", sub: "Auto — protective, from the Urge button", list: "prev", kind: "derived", weight: "med" },
-    { id: "kegels", label: "Kegels", sub: "3×10, hold 3–5s, then release", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0] },
-    { id: "stretches", label: "Pelvic Floor Stretches", sub: "5–10 min release work", list: "prime", kind: "habit", weight: "med", freq: [1, 3, 5, 0] },
-    { id: "cardio", label: "Cardio / Boxing", sub: "40 min moderate–vigorous", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0] },
-    { id: "strength", label: "Strength Training", sub: "Compounds + isometrics", list: "prime", kind: "habit", weight: "med", freq: [2, 6] },
-    { id: "breathwork", label: "Breathwork Before Isha", sub: "5 min diaphragmatic — lowers stress before bed", list: "prime", kind: "habit", weight: "med", freq: "daily" },
-    { id: "mouthtape", label: "Mouth Tape", sub: "Nasal breathing overnight", list: "prime", kind: "habit", weight: "low", freq: "daily" },
-    { id: "fasting", label: "Fasting", sub: "Mon / Thu / 13–15 lunar — recovery reset", list: "prime", kind: "habit", weight: "med", freq: "daily", fastingAuto: true },
+    { id: "kegels", label: "Kegels", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0] },
+    { id: "stretches", label: "Pelvic Floor Stretches", list: "prime", kind: "habit", weight: "med", freq: [1, 3, 5, 0] },
+    { id: "cardio", label: "Cardio / Boxing", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0] },
+    { id: "strength", label: "Strength Training", list: "prime", kind: "habit", weight: "med", freq: [2, 6] },
+    { id: "breathwork", label: "Breathwork Before Isha", list: "prime", kind: "habit", weight: "med", freq: "daily" },
+    { id: "mouthtape", label: "Mouth Tape", list: "prime", kind: "habit", weight: "low", freq: "daily" },
+    { id: "fasting", label: "Fasting", list: "prime", kind: "habit", weight: "med", freq: "daily", fastingAuto: true },
 ];
 const DEFAULT_PURPOSE = "I am preparing for her before I have met her. Every clean day is me becoming the man and husband I intend to be on day one — clear-eyed, disciplined, present.\n\nThis urge is a wave. It rises, it peaks, it passes. I do not act on it. I am building something better.";
 const DEFAULT_SETTINGS = {
@@ -334,10 +334,11 @@ function NumField({ label, value, onChange, max = 100, suffix }) {
                 }, placeholder: "\u2014", className: "w-full bg-transparent text-neutral-100 text-base outline-none placeholder-neutral-600" }),
             suffix && React.createElement("span", { className: "text-xs text-neutral-500" }, suffix))));
 }
-function Ring({ pct, size = 68, stroke = 6, color, label }) {
+function Ring({ pct, size = 68, stroke = 6, color, label, invertFill = false }) {
     const r = (size - stroke) / 2;
     const c = 2 * Math.PI * r;
-    const off = c - (Math.max(0, Math.min(100, pct)) / 100) * c;
+    const fillPct = invertFill ? 100 - Math.max(0, Math.min(100, pct)) : Math.max(0, Math.min(100, pct));
+    const off = c - (fillPct / 100) * c;
     return (React.createElement("div", { className: "flex flex-col items-center" },
         React.createElement("svg", { width: size, height: size },
             React.createElement("circle", { cx: size / 2, cy: size / 2, r: r, stroke: "#262626", strokeWidth: stroke, fill: "none" }),
@@ -398,19 +399,19 @@ function Breathe({ purposeText, onClose }) {
 }
 /* ---------- guide ---------- */
 const GUIDE = [
-    { t: "The Urge Protocol", b: "Tap the Urge button the moment it hits. The tap alone is a win, logged permanently. Your purpose card appears, then a 3-minute physiological sigh. Urges peak within minutes and pass if not fed. Still strong afterward — change environment. Leave the room, leave the house." },
-    { t: "Physiological Sigh", b: "Double inhale through the nose — one full breath, then a short extra sip on top — followed by a long, slow exhale through the mouth. Fastest evidence-backed way to downshift the nervous system in real time." },
-    { t: "Cold Exposure", b: "Cold plunges spike norepinephrine and dopamine, train stress tolerance, and act as a hard pattern-interrupt — the same discomfort skill used to sit through an urge without acting. 1–3 minutes is enough. Also supports HRV over time." },
-    { t: "Nasal Rinse", b: "A blocked nose forces mouth breathing at night, degrading sleep quality and recovery — your biggest vulnerability driver. Rinse daily, especially before bed. A clear airway is a protective habit in its own right." },
-    { t: "Kegels + Reverse Kegels", b: "Find the muscle by imagining stopping urine mid-flow. Protocol: 3 sets of 10, holding 3–5 seconds, equal relaxation between reps. Pair every session with reverse kegels — a gentle bearing-down release on the exhale. Strengthening without releasing worsens pelvic tension." },
-    { t: "Pelvic Floor Stretches", b: "5–10 minutes on scheduled days: happy baby, deep squat, child's pose, butterfly. Slow nasal breathing throughout, letting the pelvic floor soften on each exhale. The goal is release, not effort." },
-    { t: "Breathwork Before Isha", b: "5 minutes of diaphragmatic breathing, anchored to Isha prayer for consistency. Hand on the belly, inhale through the nose so the belly rises, exhale longer than the inhale. Lowers stress and cortisol right before the evening window when urges are most likely — your daily nervous-system reset, timed to a fixed anchor you already have." },
-    { t: "Mouth Tape", b: "Small strip of porous tape over the lips at night — never when congested. Keeps nasal breathing during sleep, improving oxygenation and recovery. Pair with the nasal rinse. Stop if it ever feels unsafe." },
-    { t: "Cardio Target", b: "40 minutes moderate-to-vigorous, 4× per week — the threshold linked to improved erectile and vascular function. Boxing counts fully. Mornings only — evening sessions cost sleep." },
-    { t: "Strength Training", b: "2–3× per week, compound lifts — squat, hinge, press, pull. Supports testosterone, mood, body composition. Isometric holds count here and build pain tolerance." },
-    { t: "Supplements", b: "Zinc with food. Magnesium glycinate in the evening — also aids sleep. Vitamin D in the morning, with a fatty meal. Confirm doses against your blood panel." },
-    { t: "Fasting Rhythm", b: "Mondays, Thursdays, and the 13th–15th of the lunar month, auto-suggested. Treat fasting as recovery and reset — rebuilds discipline and clarity, especially in the days after a slip." },
-    { t: "How Scoring Works", b: "Relapse Risk starts near baseline and rises with each active risk factor (weighted High/Med/Low) and falls with protective habits and surviving urges — lower is safer. Sexual Vigour is the weighted percentage of scheduled priming actions completed. Every item's weight is yours to set from experience — the Patterns tab shows what actually precedes your relapses over time." },
+    { t: "The Urge Protocol", b: "Tap Urge the moment it hits — the tap alone is a logged win. Purpose card, then 3 minutes of physiological sighs. Urges peak within minutes and pass if not fed. Still loud after? Change environment: leave the room, leave the house." },
+    { t: "Physiological Sigh", b: "Two inhales through the nose — one full, one short sip on top to fully inflate the lungs — then one long slow exhale through the mouth, roughly twice the length of the inhales. Offloads CO2 fast; the quickest evidence-backed way to downshift a stressed nervous system in real time." },
+    { t: "Kegels", b: "Find the muscle: the one that stops urine mid-flow (locate it once — don't train while urinating). Each session: 10 slow reps (squeeze 3–5s, relax an equal time; progress toward 10s holds) + 10 fast 1-second flutters. Then equal reverse-kegel work: gentle bearing-down release on a slow exhale, same rep count. Pelvic floor training trials show improved erectile rigidity and ejaculatory control — but a tight floor works against you, so release equals strengthen. Never train to fatigue." },
+    { t: "Pelvic Floor Release", b: "5–10 minutes: happy baby, deep squat, child's pose, butterfly. Nasal breathing, letting the floor soften on every exhale. Goal is release, not effort — this is what keeps the kegel work from adding tension." },
+    { t: "Cardio", b: "40 minutes moderate-to-vigorous, 4× a week — the dose meta-analyses link to measurably improved erectile function, because erections are vascular events. Boxing counts fully. Mornings only; evening sessions cost sleep." },
+    { t: "Strength", b: "2–3× a week, compound lifts: squat, hinge, press, pull. 6–12 reps, 2–3 minutes rest between working sets. Supports testosterone, mood, and body composition. Isometric holds count and build pain tolerance." },
+    { t: "Cold Exposure", b: "1–3 minutes, 2–4× a week. Spikes norepinephrine and dopamine, trains the exact discomfort tolerance used to sit through an urge. Keep it 6+ hours away from strength sessions — cold immediately after lifting blunts muscle adaptation." },
+    { t: "Breathwork Before Isha", b: "5 minutes diaphragmatic: hand on belly, nasal inhale so the belly rises, exhale longer than the inhale. Anchored to Isha because it's fixed and near bedtime — lowers cortisol going into your most vulnerable window." },
+    { t: "Nasal Rinse + Mouth Tape", b: "Rinse before bed for a clear airway; small strip of porous tape over the lips at night — never when congested. Nasal breathing during sleep improves oxygenation and recovery, your biggest vulnerability driver." },
+    { t: "Fasting", b: "Mondays, Thursdays, 13th–15th lunar — auto-flagged. Use it as reset and recovery, especially the day after a slip. Discipline transfers." },
+    { t: "Supplements", b: "Zinc 15–30 mg with food. Magnesium glycinate 200–400 mg in the evening — also aids sleep. Vitamin D 1000–4000 IU with a fatty meal. Confirm all doses against your blood panel." },
+    { t: "After A Slip", b: "The slip doesn't cause the binge — the thought 'already ruined' does. That's the abstinence violation effect, and it's the trap. Protocol: log it honestly, water, shower, out of the house, fast tomorrow, tell your accountability partner. One data point. The percentage barely moves." },
+    { t: "Scoring", b: "Risk starts near baseline, rises with active risk factors and falls with protective habits and survived urges — lower is safer, and a fuller ring is always better. Vigour is weighted completion of scheduled actions. Every weight is adjustable in Settings; Patterns shows what actually precedes your relapses." },
 ];
 /* ---------- main ---------- */
 function App() {
@@ -475,6 +476,11 @@ function App() {
     const manualStart = data.settings.manualLastRelapseDate || null;
     const lastRelapse = Math.max(loggedRelapse || 0, manualStart || 0) || null;
     const streak = Math.max(0, Math.floor((Date.now() - (lastRelapse || data.firstUse)) / DAY_MS));
+    const windowDays = Math.min(90, Math.max(1, Math.floor((Date.now() - data.firstUse) / DAY_MS) + 1));
+    const relDaySet = new Set(data.relapses.filter((r) => r.ts >= Date.now() - windowDays * DAY_MS).map((r) => dateKey(new Date(r.ts))));
+    if (manualStart && manualStart >= Date.now() - windowDays * DAY_MS)
+        relDaySet.add(dateKey(new Date(manualStart)));
+    const cleanPct = Math.round((100 * (windowDays - relDaySet.size)) / windowDays);
     const logUrge = () => { persist({ ...data, urges: [...data.urges, { ts: Date.now() }] }); setBreathing(true); };
     const logRelapse = () => {
         persist({ ...data, relapses: [...data.relapses, { ts: Date.now() }] });
@@ -484,8 +490,8 @@ function App() {
     const now = new Date();
     const prevRisks = items.filter((i) => i.list === "prev" && i.kind === "risk" && scheduledOn(i, now));
     const prevHabits = items.filter((i) => i.list === "prev" && i.kind === "habit" && scheduledOn(i, now));
-    const primeToday = items.filter((i) => i.list === "prime" && i.kind === "habit" && (i.fastingAuto || scheduledOn(i, now)));
     const fastToday = fastingSuggested(now);
+    const primeToday = items.filter((i) => i.list === "prime" && i.kind === "habit" && (i.fastingAuto ? fastToday : scheduledOn(i, now)));
     /* ---- stats ---- */
     const statsFor = () => {
         const nowTs = Date.now();
@@ -637,12 +643,12 @@ function App() {
                         React.createElement("div", { className: "flex items-center gap-1.5 mt-2", style: { color: AMBER } },
                             React.createElement(Flame, { size: 16 }),
                             React.createElement("span", { className: "font-mono text-sm font-bold" },
-                                streak,
-                                " DAY",
-                                streak === 1 ? "" : "S",
-                                " CLEAN"))),
+                                cleanPct,
+                                "% CLEAN \u00B7 ",
+                                windowDays,
+                                "D"))),
                     React.createElement("div", { className: "flex gap-4" },
-                        React.createElement(Ring, { pct: risk, color: riskColor(risk), label: "Risk" }),
+                        React.createElement(Ring, { pct: risk, color: riskColor(risk), label: "Risk", invertFill: true }),
                         React.createElement(Ring, { pct: vigourPct, color: AMBER, label: "Vigour" }))),
                 React.createElement("button", { onClick: logUrge, className: "w-full mt-5 py-4 rounded-2xl font-bold text-lg text-black flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform uppercase tracking-widest", style: { background: TEAL } },
                     React.createElement(Wind, { size: 22 }),
@@ -653,7 +659,7 @@ function App() {
                     data.urges.length === 1 ? "" : "s",
                     " survived all-time"),
                 justRelapsed && (React.createElement(Card, { className: "mt-4 border border-neutral-700" },
-                    React.createElement("div", { className: "text-sm text-neutral-300 leading-relaxed" }, "Logged. This is data now \u2014 it makes you sharper. Reset protocol: water, shower, out of the house, consider fasting tomorrow. Streak restarts today."),
+                    React.createElement("div", { className: "text-sm text-neutral-300 leading-relaxed" }, "Logged. One slip is one data point \u2014 not a collapse. Water, shower, outside. Fast tomorrow."),
                     React.createElement("button", { onClick: () => setJustRelapsed(false), className: "mt-2 text-xs text-neutral-500 uppercase tracking-wide" }, "Dismiss"))),
                 React.createElement(GroupHeader, { icon: Shield, color: TEAL }, "Relapse Prevention"),
                 React.createElement(SectionLabel, null, "Morning Intention"),
@@ -662,26 +668,21 @@ function App() {
                     React.createElement("div", { className: "text-sm text-neutral-300" }, today.intentionText || "Intention set."))) : (React.createElement("div", { className: "flex gap-2" },
                     React.createElement("input", { value: today.intentionText, onChange: (e) => setDay("intentionText", e.target.value), placeholder: "One purposeful thing today\u2026", className: "flex-1 bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
                     React.createElement("button", { onClick: () => setDay("intentionSet", true), className: "px-4 rounded-xl text-neutral-950 text-sm font-bold uppercase", style: { background: TEAL } }, "Set")))),
-                React.createElement(SectionLabel, null, "Accountability Check-In"),
+                React.createElement(SectionLabel, null, "Accountability"),
                 React.createElement(Card, { className: therapistStatus !== "scheduled" ? "border border-amber-500/50" : "" },
-                    React.createElement("div", { className: "text-sm text-neutral-300" }, therapistStatus === "setup"
-                        ? "Nothing scheduled. Your accountability partner holds you to all three areas — prevention, vigour, purpose."
-                        : therapistStatus === "overdue"
-                            ? "That date has passed. Schedule the next one."
-                            : therapistStatus === "outside"
-                                ? "Scheduled, but further out than your " + (data.settings.therapistEveryWeeks || 2) + "-week target — this still raises risk."
-                                : "Scheduled — " + new Date(data.settings.nextCheckin).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })),
-                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mt-3 mb-1" }, "Next Check-In Date & Time"),
+                    React.createElement("div", { className: "text-xs uppercase tracking-widest font-bold mb-2", style: { color: therapistStatus === "scheduled" ? TEAL : CAUTION } }, therapistStatus === "setup" ? "Nothing Booked"
+                        : therapistStatus === "overdue" ? "Overdue"
+                            : therapistStatus === "outside" ? "Beyond Window"
+                                : "Booked · " + new Date(data.settings.nextCheckin).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })),
                     React.createElement("div", { className: "flex gap-2" },
                         React.createElement("input", { type: "datetime-local", value: data.settings.nextCheckin ? new Date(data.settings.nextCheckin - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "", onChange: (e) => {
                                 const v = e.target.value;
                                 setSetting("nextCheckin", v ? new Date(v).getTime() : null);
                             }, className: "flex-1 bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none text-neutral-100" }),
-                        data.settings.nextCheckin && (React.createElement("button", { onClick: () => setSetting("nextCheckin", null), className: "px-3 rounded-xl bg-neutral-800 text-neutral-400 text-xs uppercase tracking-wide" }, "Clear"))),
-                    React.createElement("div", { className: "text-xs text-neutral-500 mt-1" }, "A date booked within your check-in window keeps risk unaffected \u2014 nothing scheduled, overdue, or too far out all raise it.")),
+                        data.settings.nextCheckin && (React.createElement("button", { onClick: () => setSetting("nextCheckin", null), className: "px-3 rounded-xl bg-neutral-800 text-neutral-400 text-xs uppercase tracking-wide" }, "Clear")))),
                 React.createElement(SectionLabel, null, "Risk Factors Today"),
                 React.createElement(Card, null,
-                    prevRisks.map((it) => (React.createElement(YesNo, { key: it.id, mode: "risk", label: it.label, sub: it.sub, value: today.checks[it.id] === undefined ? null : today.checks[it.id], onChange: (v) => setCheck(it.id, v) }))),
+                    prevRisks.map((it) => (React.createElement(YesNo, { key: it.id, mode: "risk", label: it.label, value: today.checks[it.id] === undefined ? null : today.checks[it.id], onChange: (v) => setCheck(it.id, v) }))),
                     React.createElement("div", { className: "py-2.5 border-b border-neutral-800" },
                         React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-300 mb-2 font-semibold" }, "Content Access Today"),
                         React.createElement(Seg, { value: today.access, onChange: (v) => setDay("access", v), options: [{ v: "low", label: "Low", tone: "teal" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }] })),
@@ -690,7 +691,7 @@ function App() {
                         React.createElement(Seg, { value: today.checkout, onChange: (v) => setDay("checkout", v), options: [{ v: "none", label: "None", tone: "teal" }, { v: "few", label: "A Few", tone: "warn" }, { v: "lot", label: "A Lot", tone: "risk" }] }))),
                 prevHabits.length > 0 && (React.createElement(React.Fragment, null,
                     React.createElement(SectionLabel, null, "Protective Habits"),
-                    React.createElement(Card, null, prevHabits.map((it) => (React.createElement(YesNo, { key: it.id, mode: "protective", label: it.label, sub: it.sub, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))))),
+                    React.createElement(Card, null, prevHabits.map((it) => (React.createElement(YesNo, { key: it.id, mode: "protective", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))))),
                 React.createElement(SectionLabel, null, "Recovery"),
                 React.createElement(Card, null,
                     React.createElement(NumField, { label: "Recovery Score", value: today.recovery, onChange: (v) => setDay("recovery", v), suffix: "%" })),
@@ -701,7 +702,7 @@ function App() {
                             (today.purposeRating === n ? "bg-neutral-200 text-neutral-950 border-neutral-200" : "border-neutral-700 text-neutral-400") }, n))))),
                 React.createElement(GroupHeader, { icon: Zap, color: AMBER }, "Sexual Vigour"),
                 React.createElement(SectionLabel, null, "Priming Actions"),
-                React.createElement(Card, null, primeToday.map((it) => (React.createElement(YesNo, { key: it.id, mode: "vigour", label: it.fastingAuto && fastToday ? it.label + " (Suggested Today)" : it.label, sub: it.sub, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))),
+                React.createElement(Card, null, primeToday.map((it) => (React.createElement(YesNo, { key: it.id, mode: "vigour", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))),
                 React.createElement(SectionLabel, null, "Supplements"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex flex-wrap gap-2" }, data.settings.supplements.map((s) => {
@@ -734,10 +735,10 @@ function App() {
                         React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Relapses"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold text-neutral-100 mt-1" }, st.relapses)),
                     React.createElement(Card, null,
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Current Streak"),
+                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Clean"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold mt-1", style: { color: AMBER } },
-                            streak,
-                            "D")),
+                            cleanPct,
+                            "%")),
                     React.createElement(Card, null,
                         React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Best Streak"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold text-neutral-100 mt-1" },
@@ -748,7 +749,7 @@ function App() {
                     React.createElement("div", { className: "flex gap-1.5 justify-between" }, last14.map((d) => (React.createElement("div", { key: d.k, title: d.k, className: "flex-1 h-9 rounded", style: { background: d.rel ? ROSE : !d.logged ? "#292524" : riskColor(d.score) } })))),
                     React.createElement("div", { className: "text-xs text-neutral-500 mt-2 uppercase tracking-wide" }, "Teal safe \u00B7 Amber caution \u00B7 Red risk/relapse \u00B7 Grey unlogged")),
                 React.createElement(SectionLabel, null, "Relapse Patterns"),
-                React.createElement(Card, null, correlations === null ? (React.createElement("div", { className: "text-sm text-neutral-400" }, "Patterns unlock after 3 logged relapse days. Ideally this stays locked forever \u2014 but if slips happen, this is where they start paying you back.")) : correlations.length === 0 ? (React.createElement("div", { className: "text-sm text-neutral-400" }, "Not enough factor data on relapse days yet. Keep the daily check-ins going.")) : (correlations.map((c) => (React.createElement("div", { key: c.label, className: "py-2 border-b border-neutral-800 last:border-0" },
+                React.createElement(Card, null, correlations === null ? (React.createElement("div", { className: "text-sm text-neutral-400" }, "Unlocks after 3 logged relapses.")) : correlations.length === 0 ? (React.createElement("div", { className: "text-sm text-neutral-400" }, "Keep logging.")) : (correlations.map((c) => (React.createElement("div", { key: c.label, className: "py-2 border-b border-neutral-800 last:border-0" },
                     React.createElement("div", { className: "text-sm text-neutral-200 uppercase tracking-wide font-semibold" }, c.label),
                     React.createElement("div", { className: "text-xs text-neutral-500" },
                         "Present on ",
@@ -768,7 +769,7 @@ function App() {
                 React.createElement(SectionLabel, null, "Your Purpose Card"),
                 React.createElement(Card, null,
                     React.createElement("textarea", { value: data.settings.purposeText, onChange: (e) => setSetting("purposeText", e.target.value), rows: 6, className: "w-full bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none text-neutral-200 leading-relaxed" }),
-                    React.createElement("div", { className: "text-xs text-neutral-500 mt-1" }, "Shown the moment you tap the Urge button. Write it in your own words.")),
+                    React.createElement("div", { className: "text-xs text-neutral-500 mt-1" }, "Shown when you tap Urge.")),
                 React.createElement(SectionLabel, null, "Prevention Checklist Items"),
                 React.createElement(Card, null, items.filter((i) => i.list === "prev").map((it) => React.createElement(ItemEditorRow, { key: it.id, item: it }))),
                 React.createElement(SectionLabel, null, "Vigour Checklist Items"),
@@ -811,7 +812,6 @@ function App() {
                     React.createElement(Seg, { value: data.settings.therapistEveryWeeks, allowClear: false, onChange: (v) => v && setSetting("therapistEveryWeeks", v), options: [{ v: 1, label: "Weekly" }, { v: 2, label: "2 Wks" }, { v: 3, label: "3 Wks" }, { v: 4, label: "4 Wks" }] })),
                 React.createElement(SectionLabel, null, "Backdate Last Relapse"),
                 React.createElement(Card, null,
-                    React.createElement("div", { className: "text-xs text-neutral-500 mb-2" }, "Already clean for a while? Set the actual date so your streak reflects reality."),
                     React.createElement("div", { className: "flex gap-2" },
                         React.createElement("input", { type: "date", value: data.settings.manualLastRelapseDate ? new Date(data.settings.manualLastRelapseDate - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : "", onChange: (e) => {
                                 const v = e.target.value;
@@ -820,6 +820,35 @@ function App() {
                         data.settings.manualLastRelapseDate && (React.createElement("button", { onClick: () => setSetting("manualLastRelapseDate", null), className: "px-3 rounded-xl bg-neutral-800 text-neutral-400 text-xs uppercase tracking-wide" }, "Clear")))),
                 React.createElement(SectionLabel, null, "Data"),
                 React.createElement(Card, null,
+                    React.createElement("div", { className: "flex gap-2 mb-3" },
+                        React.createElement("button", { onClick: () => {
+                                const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = "bull-backup-" + todayKey() + ".json";
+                                a.click();
+                                setTimeout(() => URL.revokeObjectURL(url), 5000);
+                            }, className: "flex-1 py-2.5 rounded-xl text-black text-xs font-bold uppercase tracking-wide", style: { background: TEAL } }, "Export"),
+                        React.createElement("label", { className: "flex-1 py-2.5 rounded-xl bg-neutral-800 text-neutral-300 text-xs font-bold uppercase tracking-wide text-center cursor-pointer" },
+                            "Import",
+                            React.createElement("input", { type: "file", accept: ".json,application/json", className: "hidden", onChange: (e) => {
+                                    const f = e.target.files && e.target.files[0];
+                                    if (!f)
+                                        return;
+                                    const reader = new FileReader();
+                                    reader.onload = () => {
+                                        try {
+                                            const parsed = migrate(JSON.parse(String(reader.result)));
+                                            if (parsed && parsed.days && parsed.items)
+                                                persist(parsed);
+                                        }
+                                        catch (err) {
+                                            console.error("import failed", err);
+                                        }
+                                    };
+                                    reader.readAsText(f);
+                                } }))),
                     resetStep === 0 && React.createElement("button", { onClick: () => setResetStep(1), className: "text-sm text-rose-400 uppercase tracking-wide" }, "Reset All Data"),
                     resetStep === 1 && (React.createElement("div", null,
                         React.createElement("div", { className: "text-sm text-neutral-300 mb-2" }, "This wipes every log, urge, relapse, item and setting. Sure?"),
@@ -830,7 +859,7 @@ function App() {
                                     persist({ version: 6, settings: { ...DEFAULT_SETTINGS }, items: DEFAULT_ITEMS.map((i) => ({ ...i, freq: Array.isArray(i.freq) ? [...i.freq] : i.freq })), days: {}, urges: [], relapses: [], firstUse: Date.now() });
                                 }, className: "flex-1 py-2 rounded-xl bg-rose-500 text-neutral-50 text-sm font-bold uppercase" }, "Wipe Everything"),
                             React.createElement("button", { onClick: () => setResetStep(0), className: "flex-1 py-2 rounded-xl bg-neutral-800 text-neutral-300 text-sm uppercase" }, "Cancel")))),
-                    React.createElement("div", { className: "text-xs text-neutral-600 mt-3" }, "Stored privately in this app's own storage. Nothing leaves your device unless you export it."))))),
+                    React.createElement("div", { className: "text-xs text-neutral-600 mt-3" }, "On-device only."))))),
         React.createElement("div", { className: "fixed bottom-0 inset-x-0 bg-black border-t border-neutral-900", style: { paddingBottom: "env(safe-area-inset-bottom, 0px)" } },
             React.createElement("div", { className: "max-w-md mx-auto flex" },
                 React.createElement(NavBtn, { id: "today", icon: Shield, label: "Today" }),
