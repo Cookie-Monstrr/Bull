@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "https://esm.sh/react@18.3.1";
 
 /* ---------- icons (self-contained, no external icon package) ---------- */
 const IconBase = ({ children, size = 20, ...p }) => (
@@ -1024,5 +1024,5 @@ function App() {
   );
 }
 
-import { createRoot } from "react-dom/client";
+import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
 createRoot(document.getElementById("root")).render(<App />);
