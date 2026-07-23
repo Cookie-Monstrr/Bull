@@ -85,22 +85,29 @@ function fastingSuggested(date) {
     return h !== null && h >= 13 && h <= 15;
 }
 /* ---------- colours ---------- */
-const TEAL = "#2dd4bf";
-const AMBER = "#f59e0b";
-const ROSE = "#f43f5e";
-const CAUTION = "#fbbf24";
+const TEAL = "#e0b040"; /* gold — primary accent */
+const AMBER = "#e0b040"; /* gold — vigour */
+const ROSE = "#dc2626"; /* crimson — danger */
+const CAUTION = "#b45309";
 /* ---------- weights ---------- */
 const W_RISK = { high: 20, med: 10, low: 5 };
 const W_PROT = { high: 8, med: 5, low: 2 };
 const W_ADH = { high: 3, med: 2, low: 1 };
+const WEIGHT_SCALE = { high: 1, med: 0.6, low: 0.3 };
 /* ---------- default items ---------- */
 const DEFAULT_ITEMS = [
     { id: "lonely", label: "Home Alone, Unstructured Time", list: "prev", kind: "risk", weight: "high", freq: "daily" },
     { id: "junk", label: "Junk Food", list: "prev", kind: "risk", weight: "med", freq: "daily" },
     { id: "caffeine", label: "Caffeine", list: "prev", kind: "risk", weight: "med", freq: "daily" },
-    { id: "latescreen", label: "Late Night Screens", sub: "Screens in bed after dark", list: "prev", kind: "risk", weight: "med", freq: "daily" },
     { id: "coldplunge", label: "Cold Plunge", sub: "1–3 min cold exposure", list: "prev", kind: "habit", weight: "med", freq: "daily" },
     { id: "nasalclear", label: "Nasal Rinse", sub: "Clear airway before bed", list: "prev", kind: "habit", weight: "med", freq: "daily" },
+    { id: "contentAccess", label: "Content Access", sub: "Low / Medium / High, logged daily", list: "prev", kind: "tier", weight: "high" },
+    { id: "checkout", label: "Checking Out Women", sub: "None / A Few / A Lot, logged daily", list: "prev", kind: "tier", weight: "high" },
+    { id: "recoveryLow", label: "Recovery Below 40%", sub: "Auto — from your Recovery Score", list: "prev", kind: "derived", weight: "med" },
+    { id: "purposeLow", label: "Low-Purpose Day (1–2)", sub: "Auto — from your Evening Review", list: "prev", kind: "derived", weight: "med" },
+    { id: "purposeHigh", label: "High-Purpose Day (4–5)", sub: "Auto — protective, from your Evening Review", list: "prev", kind: "derived", weight: "med" },
+    { id: "accountabilityGap", label: "Accountability Not On Track", sub: "Auto — nothing booked, overdue, or too far out", list: "prev", kind: "derived", weight: "high" },
+    { id: "urgeSurvivalBonus", label: "Urges Survived Today", sub: "Auto — protective, from the Urge button", list: "prev", kind: "derived", weight: "med" },
     { id: "kegels", label: "Kegels", sub: "3×10, hold 3–5s, then release", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0] },
     { id: "stretches", label: "Pelvic Floor Stretches", sub: "5–10 min release work", list: "prime", kind: "habit", weight: "med", freq: [1, 3, 5, 0] },
     { id: "cardio", label: "Cardio / Boxing", sub: "40 min moderate–vigorous", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0] },
@@ -127,9 +134,9 @@ const emptyDay = () => ({
 function migrate(old) {
     if (!old)
         return null;
-    if (old.version === 5)
+    if (old.version === 6)
         return old;
-    const base = old.version === 2 ? old : (() => {
+    const base = (old.version && old.version >= 2) ? old : (() => {
         const items = DEFAULT_ITEMS.map((it) => {
             const c = { ...it, freq: Array.isArray(it.freq) ? [...it.freq] : it.freq };
             if (["kegels", "stretches", "cardio"].includes(it.id) && Array.isArray(old.settings?.stackDays))
@@ -178,7 +185,16 @@ function migrate(old) {
         base.settings = { ...rest, nextCheckin: base.settings.nextCheckin ?? null };
     }
     base.settings = { manualLastRelapseDate: null, ...base.settings };
-    return { ...base, version: 5 };
+    base.items = (base.items || []).filter((i) => i.id !== "latescreen");
+    const NEW_BUILTIN_IDS = ["contentAccess", "checkout", "recoveryLow", "purposeLow", "purposeHigh", "accountabilityGap", "urgeSurvivalBonus"];
+    NEW_BUILTIN_IDS.forEach((id) => {
+        if (!base.items.some((i) => i.id === id)) {
+            const def = DEFAULT_ITEMS.find((i) => i.id === id);
+            if (def)
+                base.items.push({ ...def });
+        }
+    });
+    return { ...base, version: 6 };
 }
 /* ---------- scheduling ---------- */
 function scheduledOn(item, date) {
@@ -196,8 +212,10 @@ function adherenceExpected(item, date) {
 /* ---------- scoring ---------- */
 function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty = 0) {
     const d = day || emptyDay();
+    const wOf = (id, fallback) => (items.find((i) => i.id === id) || {}).weight || fallback;
+    const scaleOf = (id, fallback) => WEIGHT_SCALE[wOf(id, fallback)];
     let r = 15;
-    items.filter((i) => i.list === "prev").forEach((it) => {
+    items.filter((i) => i.list === "prev" && (i.kind === "risk" || i.kind === "habit")).forEach((it) => {
         const v = d.checks ? d.checks[it.id] : undefined;
         if (it.kind === "risk") {
             if (v === true)
@@ -208,24 +226,28 @@ function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty 
                 r -= W_PROT[it.weight];
         }
     });
+    const accessScale = scaleOf("contentAccess", "high");
     if (d.access === "high")
-        r += 25;
+        r += Math.round(25 * accessScale);
     else if (d.access === "med")
-        r += 12;
+        r += Math.round(12 * accessScale);
+    const checkoutScale = scaleOf("checkout", "high");
     if (d.checkout === "lot")
-        r += 12;
+        r += Math.round(12 * checkoutScale);
     else if (d.checkout === "few")
-        r += 4;
-    if (d.recovery !== null && d.recovery !== undefined && d.recovery !== "" && Number(d.recovery) < 40)
-        r += 10;
+        r += Math.round(4 * checkoutScale);
+    if (d.recovery !== null && d.recovery !== undefined && d.recovery !== "" && Number(d.recovery) < 40) {
+        r += Math.round(10 * scaleOf("recoveryLow", "med"));
+    }
     if (d.purposeRating !== null && d.purposeRating !== undefined) {
         if (d.purposeRating <= 2)
-            r += 10;
+            r += Math.round(10 * scaleOf("purposeLow", "med"));
         else if (d.purposeRating >= 4)
-            r -= 5;
+            r -= Math.round(5 * scaleOf("purposeHigh", "med"));
     }
-    r -= Math.min((urgesSurvived || 0) * 4, 12);
-    r += accountabilityPenalty;
+    const urgeScale = scaleOf("urgeSurvivalBonus", "med");
+    r -= Math.min((urgesSurvived || 0) * Math.round(4 * urgeScale), Math.round(12 * urgeScale));
+    r += Math.round(accountabilityPenalty * scaleOf("accountabilityGap", "high"));
     if (hadRelapse)
         r = Math.max(r, 85);
     return Math.max(0, Math.min(100, r));
@@ -258,12 +280,12 @@ function vigourForDay(day, date, items, settings) {
 function riskColor(r) { return r <= 25 ? TEAL : r <= 55 ? CAUTION : ROSE; }
 /* ---------- UI atoms ---------- */
 function Card({ children, className = "" }) {
-    return React.createElement("div", { className: "bg-neutral-900 border border-neutral-800 rounded-2xl p-4 " + className }, children);
+    return React.createElement("div", { className: "bg-neutral-900 rounded-2xl p-4 " + className }, children);
 }
 function GroupHeader({ icon: Icon, color, children }) {
     return (React.createElement("div", { className: "flex items-center gap-2 mt-8 mb-3" },
         React.createElement(Icon, { size: 16, style: { color } }),
-        React.createElement("div", { className: "text-sm font-bold uppercase tracking-widest", style: { color } }, children)));
+        React.createElement("div", { className: "font-serif text-lg tracking-[0.2em]", style: { color } }, children)));
 }
 function SectionLabel({ children }) {
     return React.createElement("div", { className: "text-xs uppercase tracking-widest text-neutral-500 mb-2 mt-5" }, children);
@@ -340,27 +362,27 @@ function Breathe({ purposeText, onClose }) {
         }, 100);
         return () => clearInterval(iv);
     }, [started]);
-    const inCycle = elapsed % 10;
+    const inCycle = elapsed % 14;
     let phase, scale, dur;
-    if (inCycle < 2.5) {
+    if (inCycle < 3.5) {
         phase = "Inhale Through The Nose";
         scale = 1.14;
-        dur = "2.5s";
+        dur = "3.5s";
     }
-    else if (inCycle < 4) {
+    else if (inCycle < 5.5) {
         phase = "Sip In A Little More";
         scale = 1.3;
-        dur = "1.5s";
+        dur = "2s";
     }
     else {
         phase = "Long Slow Exhale Through The Mouth";
         scale = 0.7;
-        dur = "6s";
+        dur = "8.5s";
     }
     const remaining = Math.ceil(TOTAL - elapsed);
     const mm = Math.floor(remaining / 60), ss = pad(remaining % 60);
     const doneAll = elapsed >= TOTAL;
-    return (React.createElement("div", { className: "fixed inset-0 z-50 bg-neutral-950 flex flex-col items-center justify-between p-6 overflow-y-auto" },
+    return (React.createElement("div", { className: "fixed inset-0 z-50 bg-black flex flex-col items-center justify-between p-6 overflow-y-auto" },
         React.createElement("div", { className: "w-full max-w-md pt-4" },
             React.createElement("div", { className: "text-xs uppercase tracking-widest font-bold mb-3", style: { color: TEAL } }, "Win Logged \u2014 Urge Survived"),
             React.createElement("p", { className: "font-serif text-neutral-200 text-lg leading-relaxed whitespace-pre-line" }, purposeText)),
@@ -412,7 +434,7 @@ function App() {
                 setData(loaded);
             else
                 setData({
-                    version: 5, settings: { ...DEFAULT_SETTINGS },
+                    version: 6, settings: { ...DEFAULT_SETTINGS },
                     items: DEFAULT_ITEMS.map((i) => ({ ...i, freq: Array.isArray(i.freq) ? [...i.freq] : i.freq })),
                     days: {}, urges: [], relapses: [], firstUse: Date.now(),
                 });
@@ -425,7 +447,7 @@ function App() {
         saveTimer.current = setTimeout(() => storageSet(next), 500);
     };
     if (!data) {
-        return (React.createElement("div", { className: "min-h-screen bg-neutral-950 flex items-center justify-center" },
+        return (React.createElement("div", { className: "min-h-screen bg-black flex items-center justify-center" },
             React.createElement("div", { className: "text-neutral-500 text-sm uppercase tracking-widest" }, "Loading")));
     }
     const items = data.items || [];
@@ -570,32 +592,38 @@ function App() {
     const NavBtn = ({ id, icon: Icon, label }) => (React.createElement("button", { onClick: () => setView(id), className: "flex-1 flex flex-col items-center gap-0.5 py-2 " + (view === id ? "" : "text-neutral-500"), style: view === id ? { color: TEAL } : undefined },
         React.createElement(Icon, { size: 20 }),
         React.createElement("span", { className: "text-[10px] uppercase tracking-wide font-semibold" }, label)));
-    const ItemEditorRow = ({ item }) => (React.createElement("div", { className: "py-2.5 border-b border-neutral-800 last:border-0" },
-        React.createElement("button", { onClick: () => setExpandedItem(expandedItem === item.id ? null : item.id), className: "w-full flex items-center justify-between text-left" },
-            React.createElement("div", { className: "pr-2" },
-                React.createElement("div", { className: "text-sm text-neutral-200 uppercase tracking-wide font-semibold" }, item.label),
-                React.createElement("div", { className: "text-xs text-neutral-500 mt-0.5" }, (item.kind === "risk" ? "RISK" : "PROTECTIVE") + " · " + item.weight.toUpperCase() + " · " + freqSummary(item))),
-            React.createElement(Pencil, { size: 14, className: "text-neutral-600 shrink-0" })),
-        expandedItem === item.id && (React.createElement("div", { className: "mt-3 space-y-3" },
-            item.list === "prev" && (React.createElement("div", null,
-                React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "Type"),
-                React.createElement(Seg, { value: item.kind, allowClear: false, onChange: (v) => v && updateItem(item.id, { kind: v }), options: [{ v: "risk", label: "Risk", tone: "risk" }, { v: "habit", label: "Protective", tone: "teal" }] }))),
-            React.createElement("div", null,
-                React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "Weight"),
-                React.createElement(Seg, { value: item.weight, allowClear: false, onChange: (v) => v && updateItem(item.id, { weight: v }), options: [{ v: "low", label: "Low" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }] })),
-            !item.fastingAuto && (React.createElement("div", null,
-                React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "Days"),
-                React.createElement("button", { onClick: () => updateItem(item.id, { freq: "daily" }), className: "px-3 py-1.5 rounded-lg text-xs uppercase border mb-1.5 " + (item.freq === "daily" ? "font-bold text-neutral-950" : "border-neutral-700 text-neutral-400"), style: item.freq === "daily" ? { background: TEAL, borderColor: TEAL } : undefined }, "Every Day"),
-                React.createElement("div", { className: "flex gap-1" }, WD.map((w, i) => {
-                    const on = Array.isArray(item.freq) && item.freq.includes(i);
-                    return (React.createElement("button", { key: w, onClick: () => toggleItemDay(Array.isArray(item.freq) ? item : { ...item, freq: [] }, i), className: "flex-1 py-1.5 rounded-lg text-xs border " + (on ? "bg-neutral-200 border-neutral-200 text-neutral-950 font-bold" : "border-neutral-700 text-neutral-500") }, w));
-                })))),
-            React.createElement("button", { onClick: () => { deleteItem(item.id); setExpandedItem(null); }, className: "text-xs text-rose-400 flex items-center gap-1 uppercase tracking-wide" },
-                React.createElement(Trash2, { size: 13 }),
-                " Remove Item")))));
-    return (React.createElement("div", { className: "min-h-screen bg-neutral-950 text-neutral-200 pb-24", style: { WebkitTapHighlightColor: "transparent" } },
+    const ItemEditorRow = ({ item }) => {
+        const kindLabel = item.kind === "risk" ? "RISK" : item.kind === "habit" ? "PROTECTIVE"
+            : item.kind === "tier" ? "TIERED" : "AUTO";
+        const editable = item.kind === "risk" || item.kind === "habit";
+        return (React.createElement("div", { className: "py-2.5 border-b border-neutral-800 last:border-0" },
+            React.createElement("button", { onClick: () => setExpandedItem(expandedItem === item.id ? null : item.id), className: "w-full flex items-center justify-between text-left" },
+                React.createElement("div", { className: "pr-2" },
+                    React.createElement("div", { className: "text-sm text-neutral-200 uppercase tracking-wide font-semibold" }, item.label),
+                    React.createElement("div", { className: "text-xs text-neutral-500 mt-0.5" }, kindLabel + " · " + item.weight.toUpperCase() + (editable ? " · " + freqSummary(item) : "")),
+                    item.sub && React.createElement("div", { className: "text-xs text-neutral-600 mt-0.5 normal-case" }, item.sub)),
+                React.createElement(Pencil, { size: 14, className: "text-neutral-600 shrink-0" })),
+            expandedItem === item.id && (React.createElement("div", { className: "mt-3 space-y-3" },
+                item.list === "prev" && editable && (React.createElement("div", null,
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "Type"),
+                    React.createElement(Seg, { value: item.kind, allowClear: false, onChange: (v) => v && updateItem(item.id, { kind: v }), options: [{ v: "risk", label: "Risk", tone: "risk" }, { v: "habit", label: "Protective", tone: "teal" }] }))),
+                React.createElement("div", null,
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "Weight"),
+                    React.createElement(Seg, { value: item.weight, allowClear: false, onChange: (v) => v && updateItem(item.id, { weight: v }), options: [{ v: "low", label: "Low" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }] })),
+                editable && !item.fastingAuto && (React.createElement("div", null,
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "Days"),
+                    React.createElement("button", { onClick: () => updateItem(item.id, { freq: "daily" }), className: "px-3 py-1.5 rounded-lg text-xs uppercase border mb-1.5 " + (item.freq === "daily" ? "font-bold text-neutral-950" : "border-neutral-700 text-neutral-400"), style: item.freq === "daily" ? { background: TEAL, borderColor: TEAL } : undefined }, "Every Day"),
+                    React.createElement("div", { className: "flex gap-1" }, WD.map((w, i) => {
+                        const on = Array.isArray(item.freq) && item.freq.includes(i);
+                        return (React.createElement("button", { key: w, onClick: () => toggleItemDay(Array.isArray(item.freq) ? item : { ...item, freq: [] }, i), className: "flex-1 py-1.5 rounded-lg text-xs border " + (on ? "bg-neutral-200 border-neutral-200 text-neutral-950 font-bold" : "border-neutral-700 text-neutral-500") }, w));
+                    })))),
+                editable && (React.createElement("button", { onClick: () => { deleteItem(item.id); setExpandedItem(null); }, className: "text-xs text-rose-400 flex items-center gap-1 uppercase tracking-wide" },
+                    React.createElement(Trash2, { size: 13 }),
+                    " Remove Item"))))));
+    };
+    return (React.createElement("div", { className: "min-h-screen bg-black text-neutral-200 pb-24", style: { WebkitTapHighlightColor: "transparent" } },
         breathing && React.createElement(Breathe, { purposeText: data.settings.purposeText, onClose: () => setBreathing(false) }),
-        React.createElement("div", { className: "max-w-md mx-auto px-4 pt-6" },
+        React.createElement("div", { className: "max-w-md mx-auto px-4", style: { paddingTop: "calc(env(safe-area-inset-top, 0px) + 24px)" } },
             view === "today" && (React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "flex items-center gap-1.5 mb-1" },
                     React.createElement("div", { className: "w-6 h-6 rounded-md", style: { background: AMBER } }),
@@ -616,7 +644,7 @@ function App() {
                     React.createElement("div", { className: "flex gap-4" },
                         React.createElement(Ring, { pct: risk, color: riskColor(risk), label: "Risk" }),
                         React.createElement(Ring, { pct: vigourPct, color: AMBER, label: "Vigour" }))),
-                React.createElement("button", { onClick: logUrge, className: "w-full mt-5 py-4 rounded-2xl font-bold text-lg text-neutral-950 flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform uppercase tracking-wide", style: { background: TEAL } },
+                React.createElement("button", { onClick: logUrge, className: "w-full mt-5 py-4 rounded-2xl font-bold text-lg text-black flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform uppercase tracking-widest", style: { background: TEAL } },
                     React.createElement(Wind, { size: 22 }),
                     " Urge \u2014 Tap To Ride It Out"),
                 React.createElement("div", { className: "text-center text-xs text-neutral-500 mt-1.5 uppercase tracking-wide" },
@@ -624,7 +652,7 @@ function App() {
                     " urge",
                     data.urges.length === 1 ? "" : "s",
                     " survived all-time"),
-                justRelapsed && (React.createElement(Card, { className: "mt-4 border-neutral-700" },
+                justRelapsed && (React.createElement(Card, { className: "mt-4 border border-neutral-700" },
                     React.createElement("div", { className: "text-sm text-neutral-300 leading-relaxed" }, "Logged. This is data now \u2014 it makes you sharper. Reset protocol: water, shower, out of the house, consider fasting tomorrow. Streak restarts today."),
                     React.createElement("button", { onClick: () => setJustRelapsed(false), className: "mt-2 text-xs text-neutral-500 uppercase tracking-wide" }, "Dismiss"))),
                 React.createElement(GroupHeader, { icon: Shield, color: TEAL }, "Relapse Prevention"),
@@ -635,7 +663,7 @@ function App() {
                     React.createElement("input", { value: today.intentionText, onChange: (e) => setDay("intentionText", e.target.value), placeholder: "One purposeful thing today\u2026", className: "flex-1 bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
                     React.createElement("button", { onClick: () => setDay("intentionSet", true), className: "px-4 rounded-xl text-neutral-950 text-sm font-bold uppercase", style: { background: TEAL } }, "Set")))),
                 React.createElement(SectionLabel, null, "Accountability Check-In"),
-                React.createElement(Card, { className: therapistStatus !== "scheduled" ? "border-amber-400" : "" },
+                React.createElement(Card, { className: therapistStatus !== "scheduled" ? "border border-amber-500/50" : "" },
                     React.createElement("div", { className: "text-sm text-neutral-300" }, therapistStatus === "setup"
                         ? "Nothing scheduled. Your accountability partner holds you to all three areas — prevention, vigour, purpose."
                         : therapistStatus === "overdue"
@@ -799,11 +827,11 @@ function App() {
                             React.createElement("button", { onClick: async () => {
                                     await storageClear();
                                     setResetStep(0);
-                                    persist({ version: 5, settings: { ...DEFAULT_SETTINGS }, items: DEFAULT_ITEMS.map((i) => ({ ...i, freq: Array.isArray(i.freq) ? [...i.freq] : i.freq })), days: {}, urges: [], relapses: [], firstUse: Date.now() });
+                                    persist({ version: 6, settings: { ...DEFAULT_SETTINGS }, items: DEFAULT_ITEMS.map((i) => ({ ...i, freq: Array.isArray(i.freq) ? [...i.freq] : i.freq })), days: {}, urges: [], relapses: [], firstUse: Date.now() });
                                 }, className: "flex-1 py-2 rounded-xl bg-rose-500 text-neutral-50 text-sm font-bold uppercase" }, "Wipe Everything"),
                             React.createElement("button", { onClick: () => setResetStep(0), className: "flex-1 py-2 rounded-xl bg-neutral-800 text-neutral-300 text-sm uppercase" }, "Cancel")))),
                     React.createElement("div", { className: "text-xs text-neutral-600 mt-3" }, "Stored privately in this app's own storage. Nothing leaves your device unless you export it."))))),
-        React.createElement("div", { className: "fixed bottom-0 inset-x-0 bg-neutral-950 border-t border-neutral-800" },
+        React.createElement("div", { className: "fixed bottom-0 inset-x-0 bg-black border-t border-neutral-900", style: { paddingBottom: "env(safe-area-inset-bottom, 0px)" } },
             React.createElement("div", { className: "max-w-md mx-auto flex" },
                 React.createElement(NavBtn, { id: "today", icon: Shield, label: "Today" }),
                 React.createElement(NavBtn, { id: "stats", icon: BarChart3, label: "Patterns" }),
