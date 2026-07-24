@@ -77,12 +77,56 @@ function hijriDay(date) {
         return null;
     }
 }
-function fastingSuggested(date) {
-    const dow = date.getDay();
-    if (dow === 1 || dow === 4)
-        return true;
+function fastingSuggested(date, lunarOnly) {
     const h = hijriDay(date);
-    return h !== null && h >= 13 && h <= 15;
+    const lunar = h !== null && h >= 13 && h <= 15;
+    if (lunarOnly)
+        return lunar;
+    const dow = date.getDay();
+    return dow === 1 || dow === 4 || lunar;
+}
+/* ---------- reminders (.ics export — no backend available for real push) ---------- */
+function icsDate(d) {
+    return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + "T" + pad(d.getHours()) + pad(d.getMinutes()) + "00";
+}
+function buildReminderEvent(uid, title, timeStr) {
+    const [hh, mm] = (timeStr || "08:00").split(":").map((n) => parseInt(n, 10));
+    const start = new Date();
+    start.setHours(hh, mm, 0, 0);
+    if (start.getTime() < Date.now())
+        start.setDate(start.getDate() + 1);
+    const end = new Date(start.getTime() + 15 * 60000);
+    return [
+        "BEGIN:VEVENT",
+        "UID:" + uid + "@bull.app",
+        "DTSTART:" + icsDate(start),
+        "DTEND:" + icsDate(end),
+        "RRULE:FREQ=DAILY",
+        "SUMMARY:" + title,
+        "BEGIN:VALARM",
+        "TRIGGER:PT0M",
+        "ACTION:DISPLAY",
+        "DESCRIPTION:" + title,
+        "END:VALARM",
+        "END:VEVENT",
+    ].join("\r\n");
+}
+function downloadReminderIcs(settings) {
+    const ics = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Bull//Reminders//EN",
+        buildReminderEvent("bull-morning", "Bull \u2014 Morning Check-In", settings.morningReminderTime),
+        buildReminderEvent("bull-evening", "Bull \u2014 Evening Review", settings.eveningReminderTime),
+        "END:VCALENDAR",
+    ].join("\r\n");
+    const blob = new Blob([ics], { type: "text/calendar" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "bull-reminders.ics";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 /* ---------- colours ---------- */
 const TEAL = "#e0b040"; /* gold — primary accent */
@@ -123,6 +167,9 @@ const DEFAULT_SETTINGS = {
     therapistEveryWeeks: 2,
     nextCheckin: null,
     manualLastRelapseDate: null,
+    fastLunarOnly: false,
+    morningReminderTime: "08:00",
+    eveningReminderTime: "21:30",
 };
 const emptyDay = () => ({
     checks: {}, access: null, checkout: null,
@@ -184,7 +231,8 @@ function migrate(old) {
         const { lastTherapistCheckin, ...rest } = base.settings;
         base.settings = { ...rest, nextCheckin: base.settings.nextCheckin ?? null };
     }
-    base.settings = { manualLastRelapseDate: null, ...base.settings };
+    base.settings = { manualLastRelapseDate: null, fastLunarOnly: false, morningReminderTime: "08:00", eveningReminderTime: "21:30", ...base.settings };
+    base.wetDreams = base.wetDreams || [];
     base.items = (base.items || []).filter((i) => i.id !== "latescreen");
     const NEW_BUILTIN_IDS = ["contentAccess", "checkout", "recoveryLow", "purposeLow", "purposeHigh", "accountabilityGap", "urgeSurvivalBonus"];
     NEW_BUILTIN_IDS.forEach((id) => {
@@ -204,9 +252,9 @@ function scheduledOn(item, date) {
         return item.freq.length === 0 ? true : item.freq.includes(date.getDay());
     return true;
 }
-function adherenceExpected(item, date) {
+function adherenceExpected(item, date, settings) {
     if (item.fastingAuto)
-        return fastingSuggested(date);
+        return fastingSuggested(date, settings && settings.fastLunarOnly);
     return scheduledOn(item, date);
 }
 /* ---------- scoring ---------- */
@@ -262,7 +310,7 @@ function vigourForDay(day, date, items, settings) {
     const d = day || emptyDay();
     let total = 0, done = 0;
     items.filter((i) => i.list === "prime" && i.kind === "habit").forEach((it) => {
-        if (!adherenceExpected(it, date))
+        if (!adherenceExpected(it, date, settings))
             return;
         const w = W_ADH[it.weight] || 2;
         total += w;
@@ -346,6 +394,220 @@ function Ring({ pct, size = 68, stroke = 6, color, label, invertFill = false }) 
             React.createElement("text", { x: "50%", y: "52%", dominantBaseline: "middle", textAnchor: "middle", fill: "#e5e5e5", fontSize: size / 4.2, fontFamily: "ui-monospace, monospace", fontWeight: "700" }, Math.round(pct))),
         label && React.createElement("div", { className: "text-[10px] uppercase tracking-widest text-neutral-500 mt-1 font-semibold" }, label)));
 }
+/* ---------- score visuals: shield (risk) + fruit (vigour) ---------- */
+function ShieldRisk({ risk, size = 68 }) {
+    const protection = 100 - Math.max(0, Math.min(100, risk));
+    const top = 92 - (82 * protection) / 100;
+    const color = riskColor(risk);
+    const crackOpacity = Math.max(0, Math.min(1, (risk - 60) / 30));
+    const cid = "shieldClip" + size;
+    return (React.createElement("div", { className: "flex flex-col items-center" },
+        React.createElement("svg", { width: size, height: size, viewBox: "0 0 100 100" },
+            React.createElement("defs", null,
+                React.createElement("clipPath", { id: cid },
+                    React.createElement("path", { d: "M50 10 L84 21 C84 50, 75 76, 50 92 C25 76, 16 50, 16 21 Z" }))),
+            React.createElement("path", { d: "M50 10 L84 21 C84 50, 75 76, 50 92 C25 76, 16 50, 16 21 Z", fill: "#171717", stroke: "#2a231a", strokeWidth: "2" }),
+            React.createElement("g", { clipPath: `url(#${cid})` },
+                React.createElement("rect", { x: 0, y: top, width: 100, height: 100, fill: color, style: { transition: "y 0.6s, fill 0.6s" } }),
+                React.createElement("rect", { x: 0, y: top, width: 100, height: 1.6, fill: "#f5cf7e", opacity: 0.6, style: { transition: "y 0.6s" } })),
+            React.createElement("circle", { cx: 50, cy: 44, r: 5.5, fill: "#050403", opacity: 0.5 }),
+            React.createElement("g", { stroke: "#050403", strokeWidth: "1.6", fill: "none", strokeLinecap: "round", opacity: crackOpacity, style: { transition: "opacity 0.6s" } },
+                React.createElement("path", { d: "M36 26 L42 36 L38 44" }),
+                React.createElement("path", { d: "M64 58 L58 66 L62 76" })),
+            React.createElement("path", { d: "M50 10 L84 21 C84 50, 75 76, 50 92 C25 76, 16 50, 16 21 Z", fill: "none", stroke: "#3a2f22", strokeWidth: "2" })),
+        React.createElement("div", { className: "text-[10px] uppercase tracking-widest text-neutral-500 mt-1 font-semibold" }, "Risk \u00B7 ", Math.round(risk))));
+}
+const FRUIT_BODY_D = "M46 24 C40 30, 38 40, 39 50 C40 60, 34 64, 33 72 C32 82, 40 89, 50 90 C60 89, 68 82, 67 72 C66 63, 61 59, 60 50 C59 40, 58 30, 54 24 C51 22, 48 22, 46 24 Z";
+function VigourFruit({ pct, size = 68 }) {
+    const v = Math.max(0, Math.min(100, pct));
+    const t = v / 100;
+    const rot = 46 * (1 - t);
+    const sx = 0.84 + 0.16 * t;
+    const sy = 0.92 + 0.08 * t;
+    const throbbing = v >= 90;
+    return (React.createElement("div", { className: "flex flex-col items-center" },
+        React.createElement("div", { style: { position: "relative", width: size, height: size } },
+            React.createElement("div", { style: { position: "absolute", inset: 0, transformOrigin: "50% 88%", transform: `rotate(${rot}deg)`, transition: "transform 0.6s" } },
+                React.createElement("div", { className: throbbing ? "bull-fruit-throb" : "", style: throbbing ? undefined : { transform: `scale(${sx},${sy})`, transition: "transform 0.6s" } },
+                    React.createElement("svg", { width: size, height: size, viewBox: "0 0 100 100" },
+                        React.createElement("defs", null,
+                            React.createElement("linearGradient", { id: `vFruitGrad${size}`, x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+                                React.createElement("stop", { offset: "0%", stopColor: "#f5cf7e" }),
+                                React.createElement("stop", { offset: "100%", stopColor: "#c8912e" }))),
+                        React.createElement("g", { transform: "translate(50 50) scale(0.76) translate(-49.54 -53.5)" },
+                            React.createElement("path", { fill: `url(#vFruitGrad${size})`, d: FRUIT_BODY_D }),
+                            React.createElement("path", { fill: "#f5cf7e", opacity: 0.12 + 0.4 * Math.max(0, t - 0.5), d: FRUIT_BODY_D, style: { transition: "opacity 0.6s" } }),
+                            React.createElement("path", { fill: "#8a6218", d: "M36 26 L42 16 L47 22 L50 10 L54 21 L61 17 L58 27 C52 31, 43 31, 36 26 Z" }),
+                            React.createElement("path", { fill: "#8a6218", d: "M49 12 C49 8, 51 5, 54 3 L57 6 C54 8, 53 11, 53 14 Z" }),
+                            React.createElement("g", { fill: "none", strokeLinecap: "round", opacity: 0.35 + 0.65 * t, style: { transition: "opacity 0.6s" } },
+                                React.createElement("path", { stroke: "#8a6218", strokeWidth: "3.4", d: "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26" }),
+                                React.createElement("path", { stroke: "#8a6218", strokeWidth: "2.8", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
+                                React.createElement("path", { stroke: "#8a6218", strokeWidth: "2", d: "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38" })),
+                            React.createElement("ellipse", { cx: 60, cy: 66, rx: 3.2, ry: 6.5, fill: "#f7e2ae", opacity: 0.85, transform: "rotate(18 60 66)" })))))),
+        React.createElement("div", { className: "text-[10px] uppercase tracking-widest text-neutral-500 mt-1 font-semibold" }, "Vigour \u00B7 ", Math.round(v))));
+}
+/* ---------- splash screen ---------- */
+const SPLASH_CSS = `
+.bull-splash{position:relative;width:100%;max-width:430px;height:100dvh;margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:#050403;font-family:'JetBrains Mono',monospace;}
+.bull-splash .glow{position:absolute;inset:-20%;background:radial-gradient(circle at 50% 42%,#2a0f06 0%,#050403 62%);opacity:0;transition:opacity 1.4s ease;}
+.bull-splash.on .glow{opacity:1;}
+.bull-splash .pulse{position:absolute;top:42%;left:50%;width:min(72vw,300px);height:min(72vw,300px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(224,176,64,0.35) 0%,rgba(224,176,64,0) 70%);opacity:0;}
+.bull-splash.on .pulse{opacity:1;animation:bsBreathe 1.9s ease-in-out 3s infinite;}
+@keyframes bsBreathe{0%,100%{transform:translate(-50%,-50%) scale(0.92);opacity:.5;}14%{transform:translate(-50%,-50%) scale(1.05);opacity:.85;}38%{transform:translate(-50%,-50%) scale(1.1);opacity:.95;}58%{transform:translate(-50%,-50%) scale(0.95);opacity:.55;}}
+.bull-splash .mark{position:relative;width:min(66vw,260px);aspect-ratio:1;margin-top:-6vh;}
+.bull-splash.on .mark{animation:bsJolt .16s linear 2.1s 2;}
+@keyframes bsJolt{0%,100%{transform:translate(0,0);}25%{transform:translate(1.5px,-1px);}50%{transform:translate(-1.5px,1px);}75%{transform:translate(1px,1px);}}
+.bull-splash .mark svg{position:absolute;inset:0;width:100%;height:100%;display:block;}
+.bull-splash .ring-track{fill:none;stroke:#1c1712;stroke-width:3;}
+.bull-splash .ring-fill{fill:none;stroke:url(#bsGoldGrad);stroke-width:3;stroke-linecap:round;stroke-dasharray:301.6;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset 1.8s cubic-bezier(.65,0,.35,1) .3s;}
+.bull-splash .shockwave{position:absolute;inset:0;border-radius:50%;border:2px solid #f5cf7e;opacity:0;pointer-events:none;}
+.bull-splash.on .shockwave{animation:bsShock .55s ease-out 2.0s;}
+@keyframes bsShock{0%{opacity:0;transform:scale(.96);}18%{opacity:.55;}100%{opacity:0;transform:scale(1.12);}}
+.bull-splash .riser,.bull-splash .grow,.bull-splash .beat{position:absolute;inset:0;}
+.bull-splash .riser{transform-origin:50.3% 77.7%;transform:rotate(28deg);}
+.bull-splash.on .riser{animation:bsRise 3s forwards;}
+@keyframes bsRise{0%{transform:rotate(28deg);animation-timing-function:ease;}16%{transform:rotate(28deg);animation-timing-function:ease-in-out;}24%{transform:rotate(25.5deg);animation-timing-function:ease-in-out;}32%{transform:rotate(27.5deg);animation-timing-function:ease-in-out;}40%{transform:rotate(23.5deg);animation-timing-function:cubic-bezier(.45,0,.15,1);}60%{transform:rotate(-4deg);animation-timing-function:ease-in-out;}70%{transform:rotate(2deg);animation-timing-function:ease-in-out;}79%{transform:rotate(-0.8deg);animation-timing-function:ease-in-out;}86%{transform:rotate(0deg);}100%{transform:rotate(0deg);}}
+.bull-splash .grow{opacity:0;transform:scale(.88,.94);}
+.bull-splash.on .grow{animation:bsEngorge 3s forwards;}
+@keyframes bsEngorge{0%{opacity:0;transform:scale(.88,.94);}10%{opacity:1;transform:scale(.88,.94);}28%{transform:scale(.90,.945);}34%{transform:scale(.945,.955);}46%{transform:scale(.93,.95);}52%{transform:scale(1.0,.98);}62%{transform:scale(1.05,1.03);}78%{transform:scale(.995,.998);}88%{transform:scale(1,1);}100%{opacity:1;transform:scale(1,1);}}
+.bull-splash.on .beat{animation:bsThrob 1.9s ease-in-out 3s infinite;}
+@keyframes bsThrob{0%,100%{transform:scale(1,1);}14%{transform:scale(1.08,1.045);}26%{transform:scale(1.0,.995);}38%{transform:scale(1.11,1.055);}58%{transform:scale(1,1);}}
+.bull-splash .flush-intro{opacity:0;}
+.bull-splash.on .flush-intro{animation:bsFlushIntro 3s forwards;}
+@keyframes bsFlushIntro{0%{opacity:0;}20%{opacity:0;}34%{opacity:.16;}52%{opacity:.28;}68%{opacity:.5;}80%{opacity:.14;}100%{opacity:.12;}}
+.bull-splash .flush-beat{opacity:0;}
+.bull-splash.on .flush-beat{animation:bsFlushBeat 1.9s ease-in-out 3s infinite;}
+@keyframes bsFlushBeat{0%,100%{opacity:0;}14%{opacity:.16;}38%{opacity:.22;}58%{opacity:0;}}
+.bull-splash .vp{stroke:#ffe9b0;fill:none;stroke-linecap:round;stroke-dasharray:16 84;stroke-dashoffset:116;opacity:0;}
+.bull-splash.on .vp{animation:bsTravel .65s linear 2 forwards;}
+@keyframes bsTravel{0%{stroke-dashoffset:116;opacity:0;}12%{opacity:.95;}88%{opacity:.95;}100%{stroke-dashoffset:-16;opacity:0;}}
+.bull-splash.on .vp.d1{animation-delay:.5s;}
+.bull-splash.on .vp.d2{animation-delay:.68s;}
+.bull-splash.on .vp.d3{animation-delay:.86s;}
+.bull-splash.on .vp.d4{animation-delay:1.0s;}
+.bull-splash.on .vp.d5{animation-delay:1.12s;}
+.bull-splash.on .vp.d6{animation-delay:1.24s;}
+.bull-splash.on .vp.d7{animation-delay:1.34s;}
+.bull-splash .vc{stroke:#ffe9b0;fill:none;stroke-linecap:round;stroke-dasharray:12 88;stroke-dashoffset:112;opacity:0;}
+.bull-splash.on .vc{animation:bsCirculate 1.9s linear infinite;}
+@keyframes bsCirculate{0%{stroke-dashoffset:112;opacity:0;}10%{opacity:.32;}90%{opacity:.32;}100%{stroke-dashoffset:-12;opacity:0;}}
+.bull-splash.on .vc.c1{animation-delay:3s;}
+.bull-splash.on .vc.c2{animation-delay:3.35s;}
+.bull-splash.on .vc.c3{animation-delay:3.7s;}
+.bull-splash .word{margin-top:22px;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.32em;font-size:1.7rem;font-weight:700;color:#f2e6c9;opacity:0;transform:translateY(8px);transition:opacity .8s ease 2.6s,transform .8s ease 2.6s;}
+.bull-splash.on .word{opacity:1;transform:translateY(0);}
+.bull-splash .line{font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:#7a7368;margin-top:8px;opacity:0;transition:opacity .8s ease 2.9s;}
+.bull-splash.on .line{opacity:1;}
+.bull-splash .stats{display:flex;gap:34px;margin-top:30px;opacity:0;transform:translateY(6px);transition:opacity .7s ease 3.2s,transform .7s ease 3.2s;}
+.bull-splash.on .stats{opacity:1;transform:translateY(0);}
+.bull-splash .stat{text-align:center;}
+.bull-splash .stat .num{font-family:'Oswald',sans-serif;font-weight:700;font-size:1.9rem;color:#f5cf7e;line-height:1;font-variant-numeric:tabular-nums;}
+.bull-splash .stat .lbl{font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:#7a7368;margin-top:6px;}
+.bull-splash .bsdivider{width:1px;background:#26201a;align-self:stretch;}
+.bull-splash .hype{position:absolute;bottom:15%;left:0;right:0;text-align:center;padding:0 40px;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.08em;font-size:0.98rem;font-weight:600;color:#d8c191;opacity:0;transition:opacity .9s ease 3.6s;}
+.bull-splash.on .hype{opacity:1;}
+@media (prefers-reduced-motion: reduce){
+  .bull-splash *{animation:none !important;transition:none !important;}
+  .bull-splash .riser{transform:rotate(0deg) !important;}
+  .bull-splash .grow{opacity:1 !important;transform:scale(1,1) !important;}
+  .bull-splash .beat{transform:scale(1,1) !important;}
+  .bull-splash .glow,.bull-splash .word,.bull-splash .line,.bull-splash .stats,.bull-splash .hype{opacity:1 !important;transform:none !important;}
+}
+`;
+const SPLASH_LINES = [
+    "Discipline is rehearsal for the man you're becoming",
+    "No one is coming. Show up anyway.",
+    "The bull doesn't ask if it feels like charging",
+];
+function Splash({ vigour, risk, cleanPct, streak, onDone }) {
+    const [on, setOn] = useState(false);
+    const [hype] = useState(() => SPLASH_LINES[Math.floor(Math.random() * SPLASH_LINES.length)]);
+    const [vigDisp, setVigDisp] = useState(0);
+    const [riskDisp, setRiskDisp] = useState(0);
+    const [cleanDisp, setCleanDisp] = useState(0);
+    useEffect(() => {
+        const raf1 = requestAnimationFrame(() => requestAnimationFrame(() => setOn(true)));
+        const countStart = setTimeout(() => {
+            const dur = 1300, t0 = performance.now();
+            const tick = (t) => {
+                const p = Math.min(1, (t - t0) / dur);
+                const eased = 1 - Math.pow(1 - p, 3);
+                setVigDisp(Math.round(eased * vigour));
+                setRiskDisp(Math.round(eased * risk));
+                setCleanDisp(Math.round(eased * cleanPct));
+                if (p < 1)
+                    requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+        }, 3200);
+        const done = setTimeout(onDone, 4700);
+        return () => { cancelAnimationFrame(raf1); clearTimeout(countStart); clearTimeout(done); };
+    }, []);
+    const c = 2 * Math.PI * 48;
+    const offset = c - (Math.max(0, Math.min(100, vigour)) / 100) * c;
+    return (React.createElement("div", { className: "fixed inset-0 z-[70] bg-black", onClick: onDone },
+        React.createElement("style", { dangerouslySetInnerHTML: { __html: SPLASH_CSS } }),
+        React.createElement("div", { className: "bull-splash" + (on ? " on" : "") },
+            React.createElement("div", { className: "glow" }),
+            React.createElement("div", { className: "pulse" }),
+            React.createElement("div", { className: "mark" },
+                React.createElement("svg", { viewBox: "0 0 100 100" },
+                    React.createElement("defs", null,
+                        React.createElement("linearGradient", { id: "bsGoldGrad", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+                            React.createElement("stop", { offset: "0%", stopColor: "#f5cf7e" }),
+                            React.createElement("stop", { offset: "100%", stopColor: "#c8912e" }))),
+                    React.createElement("circle", { className: "ring-track", cx: 50, cy: 50, r: 48 }),
+                    React.createElement("circle", { className: "ring-fill", cx: 50, cy: 50, r: 48, style: { strokeDashoffset: on ? offset : c } })),
+                React.createElement("div", { className: "shockwave" }),
+                React.createElement("div", { className: "riser" },
+                    React.createElement("div", { className: "grow" },
+                        React.createElement("div", { className: "beat" },
+                            React.createElement("svg", { viewBox: "0 0 100 100" },
+                                React.createElement("defs", null,
+                                    React.createElement("linearGradient", { id: "bsGoldGradF", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+                                        React.createElement("stop", { offset: "0%", stopColor: "#f5cf7e" }),
+                                        React.createElement("stop", { offset: "100%", stopColor: "#c8912e" }))),
+                                React.createElement("g", { transform: "translate(50 50) scale(0.76) translate(-49.54 -53.5)" },
+                                    React.createElement("path", { fill: "url(#bsGoldGradF)", d: FRUIT_BODY_D }),
+                                    React.createElement("path", { className: "flush-intro", fill: "#f5cf7e", d: FRUIT_BODY_D }),
+                                    React.createElement("path", { className: "flush-beat", fill: "#f5cf7e", d: FRUIT_BODY_D }),
+                                    React.createElement("path", { fill: "#8a6218", d: "M36 26 L42 16 L47 22 L50 10 L54 21 L61 17 L58 27 C52 31, 43 31, 36 26 Z" }),
+                                    React.createElement("path", { fill: "#8a6218", d: "M49 12 C49 8, 51 5, 54 3 L57 6 C54 8, 53 11, 53 14 Z" }),
+                                    React.createElement("g", { fill: "none", strokeLinecap: "round" },
+                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "3.8", opacity: "0.9", d: "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26" }),
+                                        React.createElement("path", { stroke: "#f5cf7e", strokeWidth: "1.2", opacity: "0.35", transform: "translate(-0.5,-0.5)", d: "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26" }),
+                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "2.6", opacity: "0.9", d: "M47 59 C52 56, 56 52, 58 46" }),
+                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "1.7", opacity: "0.85", d: "M58 46 C60 43, 60 39, 59 36" }),
+                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "2.6", opacity: "0.9", d: "M47 70 C53 68, 58 65, 62 60" }),
+                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "3.2", opacity: "0.9", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
+                                        React.createElement("path", { stroke: "#f5cf7e", strokeWidth: "1.1", opacity: "0.3", transform: "translate(-0.5,-0.5)", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
+                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "1.9", opacity: "0.85", d: "M63 62 C66 58, 67 54, 66 50" }),
+                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "2.2", opacity: "0.9", d: "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38" }),
+                                        React.createElement("path", { stroke: "#f5cf7e", strokeWidth: "0.9", opacity: "0.3", transform: "translate(-0.5,-0.5)", d: "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38" })),
+                                    React.createElement("g", null,
+                                        React.createElement("path", { className: "vp d1", pathLength: "100", strokeWidth: "4.0", d: "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26" }),
+                                        React.createElement("path", { className: "vp d2", pathLength: "100", strokeWidth: "3.4", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
+                                        React.createElement("path", { className: "vp d3", pathLength: "100", strokeWidth: "2.4", d: "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38" }),
+                                        React.createElement("path", { className: "vp d4", pathLength: "100", strokeWidth: "2.8", d: "M47 70 C53 68, 58 65, 62 60" }),
+                                        React.createElement("path", { className: "vp d5", pathLength: "100", strokeWidth: "2.8", d: "M47 59 C52 56, 56 52, 58 46" }),
+                                        React.createElement("path", { className: "vp d6", pathLength: "100", strokeWidth: "2.1", d: "M63 62 C66 58, 67 54, 66 50" }),
+                                        React.createElement("path", { className: "vp d7", pathLength: "100", strokeWidth: "1.9", d: "M58 46 C60 43, 60 39, 59 36" })),
+                                    React.createElement("g", null,
+                                        React.createElement("path", { className: "vc c1", pathLength: "100", strokeWidth: "3.4", d: "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26" }),
+                                        React.createElement("path", { className: "vc c2", pathLength: "100", strokeWidth: "3.0", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
+                                        React.createElement("path", { className: "vc c3", pathLength: "100", strokeWidth: "2.2", d: "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38" })),
+                                    React.createElement("ellipse", { cx: 60, cy: 66, rx: 3.2, ry: 6.5, fill: "#f7e2ae", opacity: 0.9, transform: "rotate(18 60 66)" }),
+                                    React.createElement("ellipse", { cx: 43, cy: 44, rx: 1.6, ry: 3.8, fill: "#f7e2ae", opacity: 0.25, transform: "rotate(-10 43 44)" }))))))),
+            React.createElement("div", { className: "word" }, "Bull"),
+            React.createElement("div", { className: "line" }, "Day ", streak, " \u00B7 Discipline compounding"),
+            React.createElement("div", { className: "stats" },
+                React.createElement("div", { className: "stat" }, React.createElement("div", { className: "num" }, vigDisp), React.createElement("div", { className: "lbl" }, "Vigour")),
+                React.createElement("div", { className: "bsdivider" }),
+                React.createElement("div", { className: "stat" }, React.createElement("div", { className: "num" }, riskDisp), React.createElement("div", { className: "lbl" }, "Risk")),
+                React.createElement("div", { className: "bsdivider" }),
+                React.createElement("div", { className: "stat" }, React.createElement("div", { className: "num" }, cleanDisp), React.createElement("div", { className: "lbl" }, "Clean %"))),
+            React.createElement("div", { className: "hype" }, hype))));
+}
 /* ---------- breathe overlay ---------- */
 function Breathe({ purposeText, onClose }) {
     const [started, setStarted] = useState(false);
@@ -419,6 +681,7 @@ function App() {
     const [view, setView] = useState("today");
     const [breathing, setBreathing] = useState(false);
     const [confirmRelapse, setConfirmRelapse] = useState(false);
+    const [confirmWetDream, setConfirmWetDream] = useState(false);
     const [justRelapsed, setJustRelapsed] = useState(false);
     const [resetStep, setResetStep] = useState(0);
     const [openGuide, setOpenGuide] = useState(null);
@@ -426,6 +689,8 @@ function App() {
     const [newSup, setNewSup] = useState("");
     const [expandedItem, setExpandedItem] = useState(null);
     const [showAdd, setShowAdd] = useState(false);
+    const [viewOffset, setViewOffset] = useState(0);
+    const [showSplash, setShowSplash] = useState(true);
     const [addForm, setAddForm] = useState({ label: "", list: "prev", kind: "risk", weight: "med", daily: true, days: [] });
     const saveTimer = useRef(null);
     useEffect(() => {
@@ -437,7 +702,7 @@ function App() {
                 setData({
                     version: 6, settings: { ...DEFAULT_SETTINGS },
                     items: DEFAULT_ITEMS.map((i) => ({ ...i, freq: Array.isArray(i.freq) ? [...i.freq] : i.freq })),
-                    days: {}, urges: [], relapses: [], firstUse: Date.now(),
+                    days: {}, urges: [], relapses: [], wetDreams: [], firstUse: Date.now(),
                 });
         })();
     }, []);
@@ -453,11 +718,13 @@ function App() {
     }
     const items = data.items || [];
     const tk = todayKey();
-    const today = { ...emptyDay(), ...(data.days[tk] || {}) };
-    const setDay = (k, v) => persist({ ...data, days: { ...data.days, [tk]: { ...today, [k]: v } } });
+    const vk = dateKey(new Date(Date.now() + viewOffset * DAY_MS));
+    const isToday = vk === tk;
+    const today = { ...emptyDay(), ...(data.days[vk] || {}) };
+    const setDay = (k, v) => persist({ ...data, days: { ...data.days, [vk]: { ...today, [k]: v } } });
     const setCheck = (id, v) => setDay("checks", { ...today.checks, [id]: v });
-    const urgesToday = data.urges.filter((u) => dateKey(new Date(u.ts)) === tk).length;
-    const relapseToday = data.relapses.some((r) => dateKey(new Date(r.ts)) === tk);
+    const urgesToday = data.urges.filter((u) => dateKey(new Date(u.ts)) === vk).length;
+    const relapseToday = data.relapses.some((r) => dateKey(new Date(r.ts)) === vk);
     const therapistStatus = (() => {
         const next = data.settings.nextCheckin;
         if (!next)
@@ -487,10 +754,14 @@ function App() {
         setConfirmRelapse(false);
         setJustRelapsed(true);
     };
-    const now = new Date();
+    const logWetDream = () => {
+        persist({ ...data, wetDreams: [...(data.wetDreams || []), { ts: Date.now() }] });
+        setConfirmWetDream(false);
+    };
+    const now = new Date(Date.now() + viewOffset * DAY_MS);
     const prevRisks = items.filter((i) => i.list === "prev" && i.kind === "risk" && scheduledOn(i, now));
     const prevHabits = items.filter((i) => i.list === "prev" && i.kind === "habit" && scheduledOn(i, now));
-    const fastToday = fastingSuggested(now);
+    const fastToday = fastingSuggested(now, data.settings.fastLunarOnly);
     const primeToday = items.filter((i) => i.list === "prime" && i.kind === "habit" && (i.fastingAuto ? fastToday : scheduledOn(i, now)));
     /* ---- stats ---- */
     const statsFor = () => {
@@ -528,6 +799,7 @@ function App() {
             vigour: ht ? (hd / ht) * 100 : null,
             urges: data.urges.filter((u) => u.ts >= from).length,
             relapses: data.relapses.filter((r) => r.ts >= from).length,
+            wetDreams: (data.wetDreams || []).filter((w) => w.ts >= from).length,
         };
     };
     const bestStreak = (() => {
@@ -540,27 +812,27 @@ function App() {
             best = Math.max(best, Math.floor((pts[i] - pts[i - 1]) / DAY_MS));
         return best;
     })();
-    const correlations = (() => {
-        if (data.relapses.length < 3)
-            return null;
-        const relKeys = [...new Set(data.relapses.map((r) => dateKey(new Date(r.ts))))].filter((k) => data.days[k]);
+    const CORRELATION_FACTORS = [
+        ...items.filter((i) => i.list === "prev" && i.kind === "risk").map((i) => ({ label: i.label, test: (d) => d.checks && d.checks[i.id] === true })),
+        ...items.filter((i) => i.list === "prev" && i.kind === "habit").map((i) => ({ label: "Skipped: " + i.label, test: (d) => !(d.checks && d.checks[i.id] === true) })),
+        { label: "Med/High Content Access", test: (d) => d.access === "med" || d.access === "high" },
+        { label: "Heavy Visual Triggers", test: (d) => d.checkout === "lot" },
+        { label: "Recovery Below 40%", test: (d) => d.recovery !== null && d.recovery !== undefined && d.recovery !== "" && Number(d.recovery) < 40 },
+        { label: "Low-Purpose Day (1–2)", test: (d) => d.purposeRating !== null && d.purposeRating !== undefined && d.purposeRating <= 2 },
+    ];
+    const correlationsFor = (eventTimestamps) => {
+        const eventKeys = [...new Set(eventTimestamps.map((ts) => dateKey(new Date(ts))))].filter((k) => data.days[k]);
         const allKeys = Object.keys(data.days).filter((k) => riskLogged(data.days[k], items));
-        if (!relKeys.length || !allKeys.length)
+        if (!eventKeys.length || !allKeys.length)
             return null;
-        const factors = [
-            ...items.filter((i) => i.list === "prev" && i.kind === "risk").map((i) => ({ label: i.label, test: (d) => d.checks && d.checks[i.id] === true })),
-            ...items.filter((i) => i.list === "prev" && i.kind === "habit").map((i) => ({ label: "Skipped: " + i.label, test: (d) => !(d.checks && d.checks[i.id] === true) })),
-            { label: "Med/High Content Access", test: (d) => d.access === "med" || d.access === "high" },
-            { label: "Heavy Visual Triggers", test: (d) => d.checkout === "lot" },
-            { label: "Recovery Below 40%", test: (d) => d.recovery !== null && d.recovery !== undefined && d.recovery !== "" && Number(d.recovery) < 40 },
-            { label: "Low-Purpose Day (1–2)", test: (d) => d.purposeRating !== null && d.purposeRating !== undefined && d.purposeRating <= 2 },
-        ];
-        return factors.map((f) => {
-            const rel = relKeys.filter((k) => f.test({ ...emptyDay(), ...data.days[k] })).length / relKeys.length;
+        return CORRELATION_FACTORS.map((f) => {
+            const rel = eventKeys.filter((k) => f.test({ ...emptyDay(), ...data.days[k] })).length / eventKeys.length;
             const base = allKeys.filter((k) => f.test({ ...emptyDay(), ...data.days[k] })).length / allKeys.length;
             return { label: f.label, rel: Math.round(rel * 100), base: Math.round(base * 100) };
         }).filter((x) => x.rel > 0).sort((a, b) => (b.rel - b.base) - (a.rel - a.base)).slice(0, 5);
-    })();
+    };
+    const correlations = data.relapses.length < 3 ? null : correlationsFor(data.relapses.map((r) => r.ts));
+    const wetDreamCorrelations = (data.wetDreams || []).length < 3 ? null : correlationsFor(data.wetDreams.map((w) => w.ts));
     const last14 = (() => {
         const out = [];
         for (let i = 13; i >= 0; i--) {
@@ -592,7 +864,7 @@ function App() {
         setAddForm({ label: "", list: "prev", kind: "risk", weight: "med", daily: true, days: [] });
         setShowAdd(false);
     };
-    const freqSummary = (item) => item.fastingAuto ? "AUTO (MON/THU/LUNAR)" :
+    const freqSummary = (item) => item.fastingAuto ? (data.settings.fastLunarOnly ? "AUTO (LUNAR ONLY)" : "AUTO (MON/THU/LUNAR)") :
         item.freq === "daily" ? "DAILY" :
             Array.isArray(item.freq) && item.freq.length ? item.freq.map((d) => WD[d]).join(" ") : "DAILY";
     const NavBtn = ({ id, icon: Icon, label }) => (React.createElement("button", { onClick: () => setView(id), className: "flex-1 flex flex-col items-center gap-0.5 py-2 " + (view === id ? "" : "text-neutral-500"), style: view === id ? { color: TEAL } : undefined },
@@ -607,7 +879,7 @@ function App() {
                 React.createElement("div", { className: "pr-2" },
                     React.createElement("div", { className: "text-sm text-neutral-200 uppercase tracking-wide font-semibold" }, item.label),
                     React.createElement("div", { className: "text-xs text-neutral-500 mt-0.5" }, kindLabel + " · " + item.weight.toUpperCase() + (editable ? " · " + freqSummary(item) : "")),
-                    item.sub && React.createElement("div", { className: "text-xs text-neutral-600 mt-0.5 normal-case" }, item.sub)),
+                    item.sub && item.list !== "prime" && React.createElement("div", { className: "text-xs text-neutral-600 mt-0.5 normal-case" }, item.sub)),
                 React.createElement(Pencil, { size: 14, className: "text-neutral-600 shrink-0" })),
             expandedItem === item.id && (React.createElement("div", { className: "mt-3 space-y-3" },
                 item.list === "prev" && editable && (React.createElement("div", null,
@@ -623,11 +895,16 @@ function App() {
                         const on = Array.isArray(item.freq) && item.freq.includes(i);
                         return (React.createElement("button", { key: w, onClick: () => toggleItemDay(Array.isArray(item.freq) ? item : { ...item, freq: [] }, i), className: "flex-1 py-1.5 rounded-lg text-xs border " + (on ? "bg-neutral-200 border-neutral-200 text-neutral-950 font-bold" : "border-neutral-700 text-neutral-500") }, w));
                     })))),
+                item.fastingAuto && (React.createElement("div", null,
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "Fasting Days"),
+                    React.createElement(Seg, { value: data.settings.fastLunarOnly ? "lunar" : "both", allowClear: false, onChange: (v) => v && setSetting("fastLunarOnly", v === "lunar"), options: [{ v: "both", label: "Mon/Thu + Lunar" }, { v: "lunar", label: "Lunar Only" }] }))),
                 editable && (React.createElement("button", { onClick: () => { deleteItem(item.id); setExpandedItem(null); }, className: "text-xs text-rose-400 flex items-center gap-1 uppercase tracking-wide" },
                     React.createElement(Trash2, { size: 13 }),
                     " Remove Item"))))));
     };
     return (React.createElement("div", { className: "min-h-screen bg-black text-neutral-200 pb-24", style: { WebkitTapHighlightColor: "transparent" } },
+        React.createElement("style", { dangerouslySetInnerHTML: { __html: "@keyframes bullFruitThrob{0%,100%{transform:scale(1,1);}14%{transform:scale(1.07,1.04);}26%{transform:scale(1.0,.995);}38%{transform:scale(1.1,1.05);}58%{transform:scale(1,1);}}.bull-fruit-throb{animation:bullFruitThrob 1.9s ease-in-out infinite;}" } }),
+        showSplash && data && React.createElement(Splash, { vigour: vigourPct, risk: risk, cleanPct: cleanPct, streak: streak, onDone: () => setShowSplash(false) }),
         breathing && React.createElement(Breathe, { purposeText: data.settings.purposeText, onClose: () => setBreathing(false) }),
         React.createElement("div", { className: "max-w-md mx-auto px-4", style: { paddingTop: "calc(env(safe-area-inset-top, 0px) + 24px)" } },
             view === "today" && (React.createElement(React.Fragment, null,
@@ -636,8 +913,12 @@ function App() {
                     React.createElement("span", { className: "text-xs font-bold tracking-[0.3em]", style: { color: AMBER } }, "BULL")),
                 React.createElement("div", { className: "flex items-start justify-between" },
                     React.createElement("div", null,
-                        React.createElement("div", { className: "font-serif text-2xl text-neutral-100" }, now.toLocaleDateString(undefined, { weekday: "long" })),
-                        React.createElement("div", { className: "text-sm text-neutral-500" },
+                        React.createElement("div", { className: "flex items-center gap-1.5" },
+                            React.createElement("button", { onClick: () => setViewOffset(viewOffset - 1), className: "text-neutral-600 px-1 -ml-1 text-lg leading-none active:text-neutral-400" }, "\u2039"),
+                            React.createElement("div", { className: "font-serif text-2xl text-neutral-100" }, isToday ? now.toLocaleDateString(undefined, { weekday: "long" }) : now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })),
+                            React.createElement("button", { onClick: () => viewOffset < 0 && setViewOffset(viewOffset + 1), disabled: viewOffset >= 0, className: "text-lg leading-none px-1 " + (viewOffset >= 0 ? "text-neutral-800" : "text-neutral-600 active:text-neutral-400") }, "\u203A")),
+                        !isToday && React.createElement("button", { onClick: () => setViewOffset(0), className: "text-[10px] uppercase tracking-widest font-bold mt-0.5", style: { color: AMBER } }, "\u270E Editing Past Day \u2014 Jump To Today"),
+                        isToday && React.createElement("div", { className: "text-sm text-neutral-500" },
                             now.toLocaleDateString(undefined, { day: "numeric", month: "long" }),
                             fastToday && React.createElement("span", { style: { color: AMBER } }, " \u00B7 FASTING DAY")),
                         React.createElement("div", { className: "flex items-center gap-1.5 mt-2", style: { color: AMBER } },
@@ -648,16 +929,17 @@ function App() {
                                 windowDays,
                                 "D"))),
                     React.createElement("div", { className: "flex gap-4" },
-                        React.createElement(Ring, { pct: risk, color: riskColor(risk), label: "Risk", invertFill: true }),
-                        React.createElement(Ring, { pct: vigourPct, color: AMBER, label: "Vigour" }))),
-                React.createElement("button", { onClick: logUrge, className: "w-full mt-5 py-4 rounded-2xl font-bold text-lg text-black flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform uppercase tracking-widest", style: { background: TEAL } },
-                    React.createElement(Wind, { size: 22 }),
-                    " Urge \u2014 Tap To Ride It Out"),
-                React.createElement("div", { className: "text-center text-xs text-neutral-500 mt-1.5 uppercase tracking-wide" },
-                    data.urges.length,
-                    " urge",
-                    data.urges.length === 1 ? "" : "s",
-                    " survived all-time"),
+                        React.createElement(ShieldRisk, { risk: risk, size: 68 }),
+                        React.createElement(VigourFruit, { pct: vigourPct, size: 68 }))),
+                isToday ? (React.createElement(React.Fragment, null,
+                    React.createElement("button", { onClick: logUrge, className: "w-full mt-5 py-4 rounded-2xl font-bold text-lg text-black flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform uppercase tracking-widest", style: { background: TEAL } },
+                        React.createElement(Wind, { size: 22 }),
+                        " Urge \u2014 Tap To Ride It Out"),
+                    React.createElement("div", { className: "text-center text-xs text-neutral-500 mt-1.5 uppercase tracking-wide" },
+                        data.urges.length,
+                        " urge",
+                        data.urges.length === 1 ? "" : "s",
+                        " survived all-time"))) : (React.createElement("div", { className: "text-center text-xs text-neutral-600 mt-5 uppercase tracking-wide py-4 border border-dashed border-neutral-800 rounded-2xl" }, "Urge logging only available on today")),
                 justRelapsed && (React.createElement(Card, { className: "mt-4 border border-neutral-700" },
                     React.createElement("div", { className: "text-sm text-neutral-300 leading-relaxed" }, "Logged. One slip is one data point \u2014 not a collapse. Water, shower, outside. Fast tomorrow."),
                     React.createElement("button", { onClick: () => setJustRelapsed(false), className: "mt-2 text-xs text-neutral-500 uppercase tracking-wide" }, "Dismiss"))),
@@ -713,11 +995,19 @@ function App() {
                 React.createElement(SectionLabel, null, "Sleep"),
                 React.createElement(Card, null,
                     React.createElement(NumField, { label: "Sleep Score", value: today.sleep, onChange: (v) => setDay("sleep", v), suffix: "%" })),
-                React.createElement("div", { className: "mt-8 text-center" }, !confirmRelapse ? (React.createElement("button", { onClick: () => setConfirmRelapse(true), className: "text-xs text-neutral-600 underline uppercase tracking-wide" }, "Log A Relapse")) : (React.createElement(Card, null,
+                isToday && React.createElement("div", { className: "mt-8 text-center flex items-center justify-center gap-4" },
+                    !confirmRelapse && React.createElement("button", { onClick: () => setConfirmRelapse(true), className: "text-xs text-neutral-600 underline uppercase tracking-wide" }, "Log A Relapse"),
+                    !confirmWetDream && React.createElement("button", { onClick: () => setConfirmWetDream(true), className: "text-xs text-neutral-600 underline uppercase tracking-wide" }, "Log A Wet Dream")),
+                isToday && confirmRelapse && (React.createElement(Card, { className: "mt-3" },
                     React.createElement("div", { className: "text-sm text-neutral-300 mb-3" }, "Log a relapse now? Honesty keeps the data \u2014 and you \u2014 sharp."),
                     React.createElement("div", { className: "flex gap-2" },
                         React.createElement("button", { onClick: logRelapse, className: "flex-1 py-2.5 rounded-xl bg-rose-500 text-neutral-50 text-sm font-bold uppercase" }, "Yes, Log It"),
-                        React.createElement("button", { onClick: () => setConfirmRelapse(false), className: "flex-1 py-2.5 rounded-xl bg-neutral-800 text-neutral-300 text-sm uppercase" }, "Cancel"))))))),
+                        React.createElement("button", { onClick: () => setConfirmRelapse(false), className: "flex-1 py-2.5 rounded-xl bg-neutral-800 text-neutral-300 text-sm uppercase" }, "Cancel")))),
+                isToday && confirmWetDream && (React.createElement(Card, { className: "mt-3" },
+                    React.createElement("div", { className: "text-sm text-neutral-300 mb-3" }, "Log a wet dream for today? Used only for Pattern correlation \u2014 same as relapses."),
+                    React.createElement("div", { className: "flex gap-2" },
+                        React.createElement("button", { onClick: logWetDream, className: "flex-1 py-2.5 rounded-xl text-neutral-950 text-sm font-bold uppercase", style: { background: AMBER } }, "Yes, Log It"),
+                        React.createElement("button", { onClick: () => setConfirmWetDream(false), className: "flex-1 py-2.5 rounded-xl bg-neutral-800 text-neutral-300 text-sm uppercase" }, "Cancel")))))),
             view === "stats" && st && (React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "font-serif text-2xl text-neutral-100 mb-4" }, "Patterns"),
                 React.createElement(Seg, { value: period, allowClear: false, onChange: (v) => v && setPeriod(v), options: [{ v: "D", label: "Day" }, { v: "W", label: "Week" }, { v: "M", label: "Month" }, { v: "Y", label: "Year" }, { v: "A", label: "All" }] }),
@@ -734,6 +1024,9 @@ function App() {
                     React.createElement(Card, null,
                         React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Relapses"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold text-neutral-100 mt-1" }, st.relapses)),
+                    React.createElement(Card, null,
+                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Wet Dreams"),
+                        React.createElement("div", { className: "font-mono text-2xl font-bold mt-1", style: { color: AMBER } }, st.wetDreams)),
                     React.createElement(Card, null,
                         React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Clean"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold mt-1", style: { color: AMBER } },
@@ -755,6 +1048,15 @@ function App() {
                         "Present on ",
                         c.rel,
                         "% of relapse days \u00B7 ",
+                        c.base,
+                        "% of all days")))))),
+                React.createElement(SectionLabel, null, "Wet Dream Patterns"),
+                React.createElement(Card, null, wetDreamCorrelations === null ? (React.createElement("div", { className: "text-sm text-neutral-400" }, "Unlocks after 3 logged wet dreams.")) : wetDreamCorrelations.length === 0 ? (React.createElement("div", { className: "text-sm text-neutral-400" }, "Keep logging.")) : (wetDreamCorrelations.map((c) => (React.createElement("div", { key: c.label, className: "py-2 border-b border-neutral-800 last:border-0" },
+                    React.createElement("div", { className: "text-sm text-neutral-200 uppercase tracking-wide font-semibold" }, c.label),
+                    React.createElement("div", { className: "text-xs text-neutral-500" },
+                        "Present on ",
+                        c.rel,
+                        "% of wet dream days \u00B7 ",
                         c.base,
                         "% of all days")))))))),
             view === "guide" && (React.createElement(React.Fragment, null,
@@ -807,6 +1109,17 @@ function App() {
                         React.createElement("button", { onClick: () => { const v = newSup.trim(); if (v && !data.settings.supplements.includes(v))
                                 setSetting("supplements", [...data.settings.supplements, v]); setNewSup(""); }, className: "px-3 rounded-xl bg-neutral-200 text-neutral-950" },
                             React.createElement(Plus, { size: 16 })))),
+                React.createElement(SectionLabel, null, "Daily Reminders"),
+                React.createElement(Card, null,
+                    React.createElement("div", { className: "text-xs text-neutral-500 mb-3 leading-relaxed" }, "Bull is a static app with no server, so it can't push notifications on its own. This exports two daily recurring reminders as a calendar file \u2014 import it once into iOS Calendar or Reminders for real notifications."),
+                    React.createElement("div", { className: "flex gap-2 mb-3" },
+                        React.createElement("div", { className: "flex-1" },
+                            React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1" }, "Morning"),
+                            React.createElement("input", { type: "time", value: data.settings.morningReminderTime || "08:00", onChange: (e) => setSetting("morningReminderTime", e.target.value), className: "w-full bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none text-neutral-100" })),
+                        React.createElement("div", { className: "flex-1" },
+                            React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1" }, "Evening"),
+                            React.createElement("input", { type: "time", value: data.settings.eveningReminderTime || "21:30", onChange: (e) => setSetting("eveningReminderTime", e.target.value), className: "w-full bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none text-neutral-100" }))),
+                    React.createElement("button", { onClick: () => downloadReminderIcs(data.settings), className: "w-full py-2.5 rounded-xl text-neutral-950 text-xs font-bold uppercase tracking-wide", style: { background: TEAL } }, "Download Reminders (.ics)")),
                 React.createElement(SectionLabel, null, "Accountability Frequency"),
                 React.createElement(Card, null,
                     React.createElement(Seg, { value: data.settings.therapistEveryWeeks, allowClear: false, onChange: (v) => v && setSetting("therapistEveryWeeks", v), options: [{ v: 1, label: "Weekly" }, { v: 2, label: "2 Wks" }, { v: 3, label: "3 Wks" }, { v: 4, label: "4 Wks" }] })),
