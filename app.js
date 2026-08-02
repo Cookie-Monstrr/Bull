@@ -176,6 +176,7 @@ const emptyDay = () => ({
     intentionText: "", intentionSet: false, purposeRating: null,
     recovery: null, sleep: null,
     supplementsTaken: {},
+    sick: false, travelling: false,
 });
 /* ---------- migration ---------- */
 function migrate(old) {
@@ -776,9 +777,10 @@ function App() {
         else if (period === "Y")
             from = nowTs - 365 * DAY_MS;
         const relKeySet = new Set(data.relapses.map((r) => dateKey(new Date(r.ts))));
+        const flagged = (k) => { const d = data.days[k]; return d && (d.sick === true || d.travelling === true); };
         const keys = Object.keys(data.days).filter((k) => {
             const t = new Date(k + "T12:00:00").getTime();
-            return t >= from && riskLogged(data.days[k], items);
+            return t >= from && riskLogged(data.days[k], items) && !flagged(k);
         });
         let sum = 0;
         keys.forEach((k) => {
@@ -789,6 +791,8 @@ function App() {
         Object.keys(data.days).forEach((k) => {
             const t = new Date(k + "T12:00:00");
             if (t.getTime() < from)
+                return;
+            if (flagged(k))
                 return;
             const r = vigourForDay({ ...emptyDay(), ...data.days[k] }, t, items, data.settings);
             hd += r.done;
@@ -819,6 +823,8 @@ function App() {
         { label: "Heavy Visual Triggers", test: (d) => d.checkout === "lot" },
         { label: "Recovery Below 40%", test: (d) => d.recovery !== null && d.recovery !== undefined && d.recovery !== "" && Number(d.recovery) < 40 },
         { label: "Low-Purpose Day (1–2)", test: (d) => d.purposeRating !== null && d.purposeRating !== undefined && d.purposeRating <= 2 },
+        { label: "Flagged Sick", test: (d) => d.sick === true },
+        { label: "Flagged Travelling", test: (d) => d.travelling === true },
     ];
     const correlationsFor = (eventTimestamps) => {
         const eventKeys = [...new Set(eventTimestamps.map((ts) => dateKey(new Date(ts))))].filter((k) => data.days[k]);
@@ -977,6 +983,12 @@ function App() {
                 React.createElement(SectionLabel, null, "Recovery"),
                 React.createElement(Card, null,
                     React.createElement(NumField, { label: "Recovery Score", value: today.recovery, onChange: (v) => setDay("recovery", v), suffix: "%" })),
+                React.createElement(SectionLabel, null, "Day Flags"),
+                React.createElement(Card, null,
+                    React.createElement("div", { className: "flex gap-2" },
+                        React.createElement("button", { onClick: () => setDay("sick", !today.sick), className: "flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.sick ? "text-neutral-950 font-bold" : "border-neutral-700 text-neutral-400"), style: today.sick ? { background: CAUTION, borderColor: CAUTION } : undefined }, "Sick"),
+                        React.createElement("button", { onClick: () => setDay("travelling", !today.travelling), className: "flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.travelling ? "text-neutral-950 font-bold" : "border-neutral-700 text-neutral-400"), style: today.travelling ? { background: CAUTION, borderColor: CAUTION } : undefined }, "Travelling")),
+                    React.createElement("div", { className: "text-[10px] text-neutral-600 mt-2 leading-relaxed" }, "Flagged days are left out of your period averages, but Patterns still tests them for correlation with relapses and wet dreams. Today's live score isn't affected.")),
                 React.createElement(SectionLabel, null, "Evening Review"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-300 mb-2 font-semibold" }, "How Meaningful Did Today Feel"),
