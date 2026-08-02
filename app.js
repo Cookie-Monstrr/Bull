@@ -132,6 +132,13 @@ function downloadReminderIcs(settings) {
 const TEAL = "#e0b040"; /* gold — primary accent */
 const AMBER = "#e0b040"; /* gold — vigour */
 const ROSE = "#dc2626"; /* crimson — danger */
+/* ---------- ambient color utilities ---------- */
+function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function lerpN(a, b, t) { return a + (b - a) * t; }
+function mixHex(h1, h2, t) {
+    const a = hexToRgb(h1), b = hexToRgb(h2);
+    return `rgb(${Math.round(lerpN(a[0], b[0], t))},${Math.round(lerpN(a[1], b[1], t))},${Math.round(lerpN(a[2], b[2], t))})`;
+}
 const CAUTION = "#b45309";
 /* ---------- weights ---------- */
 const W_RISK = { high: 20, med: 10, low: 5 };
@@ -329,7 +336,7 @@ function vigourForDay(day, date, items, settings) {
 function riskColor(r) { return r <= 25 ? TEAL : r <= 55 ? CAUTION : ROSE; }
 /* ---------- UI atoms ---------- */
 function Card({ children, className = "" }) {
-    return React.createElement("div", { className: "bg-neutral-900 rounded-2xl p-4 " + className }, children);
+    return React.createElement("div", { className: "rounded-2xl p-4 " + className, style: { background: "rgba(255,255,255,0.028)" } }, children);
 }
 function GroupHeader({ icon: Icon, color, children }) {
     return (React.createElement("div", { className: "flex items-center gap-2 mt-8 mb-3" },
@@ -356,17 +363,17 @@ function Seg({ value, options, onChange, allowClear = true }) {
             else
                 cls = "bg-neutral-200 text-neutral-950 border-neutral-200 font-bold";
         }
-        const style = active && tone === "teal" ? { background: TEAL, borderColor: TEAL } :
-            active && tone === "amber" ? { background: AMBER, borderColor: AMBER } : undefined;
+        const style = active && tone === "teal" ? { background: "var(--accent, #e0b040)", borderColor: "var(--accent, #e0b040)", boxShadow: "0 0 calc(var(--vig, 0.5)*16px) rgba(224,176,64,calc(var(--vig, 0.5)*0.35))" } :
+            active && tone === "amber" ? { background: "var(--accent, #e0b040)", borderColor: "var(--accent, #e0b040)", boxShadow: "0 0 calc(var(--vig, 0.5)*16px) rgba(224,176,64,calc(var(--vig, 0.5)*0.35))" } : undefined;
         return (React.createElement("button", { key: String(o.v), style: style, onClick: () => onChange(active && allowClear ? null : o.v), className: "flex-1 py-2 px-2 rounded-xl border text-xs uppercase tracking-wide transition-colors " + cls }, o.label));
     })));
 }
 function YesNo({ label, sub, value, onChange, mode = "risk" }) {
     const yesTone = mode === "risk" ? "risk" : mode === "vigour" ? "amber" : "teal";
     const noTone = mode === "risk" ? "teal" : "neutral";
-    return (React.createElement("div", { className: "flex items-center justify-between py-2.5 border-b border-neutral-800 last:border-0 gap-3" },
+    return (React.createElement("div", { className: "flex items-center justify-between py-3 last:border-0 gap-3", style: { borderBottom: "1px solid rgba(255,255,255,0.045)" } },
         React.createElement("div", { className: "pr-1" },
-            React.createElement("div", { className: "text-[13px] uppercase tracking-wide text-neutral-200 font-semibold" }, label),
+            React.createElement("div", { className: "text-[13px] text-neutral-300 tracking-wide" }, label),
             sub && React.createElement("div", { className: "text-xs text-neutral-500 mt-0.5 normal-case tracking-normal" }, sub)),
         React.createElement("div", { className: "w-28 shrink-0" },
             React.createElement(Seg, { value: value === undefined ? null : value, onChange: onChange, options: [{ v: true, label: "Yes", tone: yesTone }, { v: false, label: "No", tone: noTone }] }))));
@@ -749,6 +756,44 @@ function App() {
     if (manualStart && manualStart >= Date.now() - windowDays * DAY_MS)
         relDaySet.add(dateKey(new Date(manualStart)));
     const cleanPct = Math.round((100 * (windowDays - relDaySet.size)) / windowDays);
+    /* ---------- ambient mood: driven by 30-day rolling averages, flagged days excluded ---------- */
+    const ambient = (() => {
+        const from = Date.now() - 30 * DAY_MS;
+        const relKeySet = new Set(data.relapses.map((r) => dateKey(new Date(r.ts))));
+        const isFlagged = (k) => { const d = data.days[k]; return d && (d.sick === true || d.travelling === true); };
+        let rSum = 0, rN = 0, hd = 0, ht = 0;
+        Object.keys(data.days).forEach((k) => {
+            const t = new Date(k + "T12:00:00");
+            if (t.getTime() < from || isFlagged(k))
+                return;
+            if (riskLogged(data.days[k], items)) {
+                const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
+                rSum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeySet.has(k));
+                rN++;
+            }
+            const r = vigourForDay({ ...emptyDay(), ...data.days[k] }, t, items, data.settings);
+            hd += r.done;
+            ht += r.total;
+        });
+        const vigAvg = ht ? (hd / ht) : 0.6;
+        const protAvg = rN ? 1 - (rSum / rN) / 100 : 0.85;
+        const vt = Math.max(0, Math.min(1, vigAvg));
+        const dgr = Math.pow(Math.max(0, Math.min(1, 1 - protAvg)), 1.35);
+        return {
+            vt, dgr, tense: protAvg <= 0.33,
+            accent: mixHex("#8a7a55", "#e0b040", Math.min(1, vt * 1.25)),
+            vars: {
+                "--vig": vt.toFixed(3),
+                "--accent": mixHex("#8a7a55", "#e0b040", Math.min(1, vt * 1.25)),
+                "--energyOp": (0.12 + 0.5 * vt).toFixed(3),
+                "--energyCol": `rgba(224,176,64,${(0.14 + 0.2 * vt).toFixed(3)})`,
+                "--breatheA": (0.015 + 0.06 * vt).toFixed(3),
+                "--dgrOp": (dgr * 0.5).toFixed(3),
+                "--dgrLine": (dgr * 0.9).toFixed(3),
+                "--bg": mixHex("#050403", "#0d0305", dgr * 0.8),
+            },
+        };
+    })();
     const logUrge = () => { persist({ ...data, urges: [...data.urges, { ts: Date.now() }] }); setBreathing(true); };
     const logRelapse = () => {
         persist({ ...data, relapses: [...data.relapses, { ts: Date.now() }] });
@@ -908,8 +953,17 @@ function App() {
                     React.createElement(Trash2, { size: 13 }),
                     " Remove Item"))))));
     };
-    return (React.createElement("div", { className: "min-h-screen bg-black text-neutral-200 pb-24", style: { WebkitTapHighlightColor: "transparent" } },
-        React.createElement("style", { dangerouslySetInnerHTML: { __html: "@keyframes bullFruitThrob{0%,100%{transform:scale(1,1);}14%{transform:scale(1.07,1.04);}26%{transform:scale(1.0,.995);}38%{transform:scale(1.1,1.05);}58%{transform:scale(1,1);}}.bull-fruit-throb{animation:bullFruitThrob 1.9s ease-in-out infinite;}" } }),
+    return (React.createElement("div", { className: "min-h-screen text-neutral-200 pb-24", style: { WebkitTapHighlightColor: "transparent", background: "var(--bg, #050403)", transition: "background 0.8s", ...ambient.vars } },
+        React.createElement("style", { dangerouslySetInnerHTML: { __html: "@keyframes bullFruitThrob{0%,100%{transform:scale(1,1);}14%{transform:scale(1.07,1.04);}26%{transform:scale(1.0,.995);}38%{transform:scale(1.1,1.05);}58%{transform:scale(1,1);}}.bull-fruit-throb{animation:bullFruitThrob 1.9s ease-in-out infinite;}"
+                    + ".bull-energy{position:fixed;top:-16%;left:50%;width:150%;aspect-ratio:1.2;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 30%, var(--energyCol, rgba(224,176,64,.2)) 0%, transparent 62%);opacity:var(--energyOp,.3);pointer-events:none;z-index:0;animation:bullEnergyBreathe 5s ease-in-out infinite;transition:opacity .8s;}"
+                    + "@keyframes bullEnergyBreathe{0%,100%{transform:translateX(-50%) scale(1);}50%{transform:translateX(-50%) scale(calc(1 + var(--breatheA,0.03)));}}"
+                    + ".bull-danger{position:fixed;inset:0;pointer-events:none;z-index:40;background:radial-gradient(ellipse 120% 100% at 50% 45%, transparent 55%, rgba(150,10,20,var(--dgrOp,0)) 100%);transition:background .8s;}"
+                    + ".bull-danger.tense{animation:bullTension 2.4s ease-in-out infinite;}"
+                    + "@keyframes bullTension{0%,100%{opacity:1;}50%{opacity:.82;}}"
+                    + ".bull-forceline{height:2px;border-radius:2px;margin:16px 0 4px;background:linear-gradient(90deg, var(--accent,#e0b040) 0%, transparent 45%, transparent 55%, rgba(220,38,38,var(--dgrLine,0)) 100%);opacity:.9;transition:background .8s;}"
+                    + "@media (prefers-reduced-motion: reduce){.bull-energy,.bull-danger.tense,.bull-fruit-throb{animation:none !important;}}" } }),
+        React.createElement("div", { className: "bull-energy" }),
+        React.createElement("div", { className: "bull-danger" + (ambient.tense ? " tense" : "") }),
         showSplash && data && React.createElement(Splash, { vigour: vigourPct, risk: risk, cleanPct: cleanPct, streak: streak, onDone: () => setShowSplash(false) }),
         breathing && React.createElement(Breathe, { purposeText: data.settings.purposeText, onClose: () => setBreathing(false) }),
         React.createElement("div", { className: "max-w-md mx-auto px-4", style: { paddingTop: "calc(env(safe-area-inset-top, 0px) + 24px)" } },
@@ -937,8 +991,9 @@ function App() {
                     React.createElement("div", { className: "flex gap-4" },
                         React.createElement(ShieldRisk, { risk: risk, size: 68 }),
                         React.createElement(VigourFruit, { pct: vigourPct, size: 68 }))),
+                React.createElement("div", { className: "bull-forceline" }),
                 isToday ? (React.createElement(React.Fragment, null,
-                    React.createElement("button", { onClick: logUrge, className: "w-full mt-5 py-4 rounded-2xl font-bold text-lg text-black flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform uppercase tracking-widest", style: { background: TEAL } },
+                    React.createElement("button", { onClick: logUrge, className: "w-full mt-5 py-4 rounded-2xl font-bold text-lg text-black flex items-center justify-center gap-2 active:scale-95 transition-transform uppercase tracking-widest", style: { background: "var(--accent, #e0b040)", boxShadow: "0 6px calc(12px + var(--vig, 0.5)*20px) rgba(224,176,64,calc(0.1 + var(--vig, 0.5)*0.28))" } },
                         React.createElement(Wind, { size: 22 }),
                         " Urge \u2014 Tap To Ride It Out"),
                     React.createElement("div", { className: "text-center text-xs text-neutral-500 mt-1.5 uppercase tracking-wide" },
