@@ -137,7 +137,8 @@ function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 2
 function lerpN(a, b, t) { return a + (b - a) * t; }
 function mixHex(h1, h2, t) {
     const a = hexToRgb(h1), b = hexToRgb(h2);
-    return `rgb(${Math.round(lerpN(a[0], b[0], t))},${Math.round(lerpN(a[1], b[1], t))},${Math.round(lerpN(a[2], b[2], t))})`;
+    const to2 = (n) => Math.round(n).toString(16).padStart(2, "0");
+    return "#" + to2(lerpN(a[0], b[0], t)) + to2(lerpN(a[1], b[1], t)) + to2(lerpN(a[2], b[2], t));
 }
 const CAUTION = "#b45309";
 /* ---------- weights ---------- */
@@ -336,52 +337,51 @@ function vigourForDay(day, date, items, settings) {
 function riskColor(r) { return r <= 25 ? TEAL : r <= 55 ? CAUTION : ROSE; }
 /* ---------- UI atoms ---------- */
 function Card({ children, className = "" }) {
-    return React.createElement("div", { className: "rounded-2xl p-4 " + className, style: { background: "rgba(255,255,255,0.028)" } }, children);
+    return React.createElement("div", { className: "rounded-2xl p-4 " + className, style: { background: "rgba(255,255,255,0.022)" } }, children);
+}
+function Rows({ children, className = "" }) {
+    return React.createElement("div", { className: className }, children);
 }
 function GroupHeader({ icon: Icon, color, children }) {
-    return (React.createElement("div", { className: "flex items-center gap-2 mt-8 mb-3" },
-        React.createElement(Icon, { size: 16, style: { color } }),
-        React.createElement("div", { className: "font-serif text-lg tracking-[0.2em]", style: { color } }, children)));
+    return (React.createElement("div", { className: "flex items-center gap-2 mt-10 mb-1" },
+        React.createElement(Icon, { size: 13, style: { color, opacity: 0.75 } }),
+        React.createElement("div", { className: "text-[11px] uppercase tracking-[0.22em] font-semibold", style: { color, opacity: 0.85 } }, children)));
 }
 function SectionLabel({ children }) {
-    return React.createElement("div", { className: "text-xs uppercase tracking-widest text-neutral-500 mb-2 mt-5" }, children);
+    return React.createElement("div", { className: "text-[10px] uppercase tracking-[0.22em] mb-1 mt-7", style: { color: "#6a6358" } }, children);
 }
 function Seg({ value, options, onChange, allowClear = true }) {
     return (React.createElement("div", { className: "flex gap-1.5" }, options.map((o) => {
         const active = value === o.v;
         const tone = o.tone || "neutral";
-        let cls = "bg-neutral-800 text-neutral-400 border-neutral-700";
+        let style = { border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "#6a6358" };
         if (active) {
-            if (tone === "teal")
-                cls = "border-2 font-bold text-neutral-950";
-            else if (tone === "amber")
-                cls = "border-2 font-bold text-neutral-950";
+            if (tone === "teal" || tone === "amber")
+                style = { border: "1px solid var(--accent, #e0b040)", background: "var(--accent, #e0b040)", color: "#0a0705", fontWeight: 700, boxShadow: "0 0 calc(var(--vig, 0.5)*18px) rgba(224,176,64,calc(var(--vig, 0.5)*0.35))" };
             else if (tone === "warn")
-                cls = "bg-amber-300 text-neutral-950 border-amber-300 font-bold";
+                style = { border: "1px solid " + CAUTION, background: CAUTION, color: "#0a0705", fontWeight: 700 };
             else if (tone === "risk")
-                cls = "bg-rose-500 text-neutral-50 border-rose-500 font-bold";
+                style = { border: "1px solid " + ROSE, background: ROSE, color: "#fff", fontWeight: 700 };
             else
-                cls = "bg-neutral-200 text-neutral-950 border-neutral-200 font-bold";
+                style = { border: "1px solid #2a2622", background: "#2a2622", color: "#b5aa96", fontWeight: 700 };
         }
-        const style = active && tone === "teal" ? { background: "var(--accent, #e0b040)", borderColor: "var(--accent, #e0b040)", boxShadow: "0 0 calc(var(--vig, 0.5)*16px) rgba(224,176,64,calc(var(--vig, 0.5)*0.35))" } :
-            active && tone === "amber" ? { background: "var(--accent, #e0b040)", borderColor: "var(--accent, #e0b040)", boxShadow: "0 0 calc(var(--vig, 0.5)*16px) rgba(224,176,64,calc(var(--vig, 0.5)*0.35))" } : undefined;
-        return (React.createElement("button", { key: String(o.v), style: style, onClick: () => onChange(active && allowClear ? null : o.v), className: "flex-1 py-2 px-2 rounded-xl border text-xs uppercase tracking-wide transition-colors " + cls }, o.label));
+        return (React.createElement("button", { key: String(o.v), style: style, onClick: () => onChange(active && allowClear ? null : o.v), className: "flex-1 py-2 px-3 rounded-full text-[11px] uppercase tracking-[0.12em] transition-all" }, o.label));
     })));
 }
 function YesNo({ label, sub, value, onChange, mode = "risk" }) {
     const yesTone = mode === "risk" ? "risk" : mode === "vigour" ? "amber" : "teal";
     const noTone = mode === "risk" ? "teal" : "neutral";
-    return (React.createElement("div", { className: "flex items-center justify-between py-3 last:border-0 gap-3", style: { borderBottom: "1px solid rgba(255,255,255,0.045)" } },
+    return (React.createElement("div", { className: "flex items-center justify-between py-4 last:border-0 gap-3", style: { borderBottom: "1px solid rgba(255,255,255,0.045)" } },
         React.createElement("div", { className: "pr-1" },
-            React.createElement("div", { className: "text-[13px] text-neutral-300 tracking-wide" }, label),
-            sub && React.createElement("div", { className: "text-xs text-neutral-500 mt-0.5 normal-case tracking-normal" }, sub)),
-        React.createElement("div", { className: "w-28 shrink-0" },
+            React.createElement("div", { className: "text-[13.5px] text-neutral-300 tracking-[0.02em]" }, label),
+            sub && React.createElement("div", { className: "text-[11px] text-neutral-600 mt-1 normal-case tracking-normal" }, sub)),
+        React.createElement("div", { className: "w-[124px] shrink-0" },
             React.createElement(Seg, { value: value === undefined ? null : value, onChange: onChange, options: [{ v: true, label: "Yes", tone: yesTone }, { v: false, label: "No", tone: noTone }] }))));
 }
 function NumField({ label, value, onChange, max = 100, suffix }) {
     return (React.createElement("div", { className: "flex-1" },
         React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1" }, label),
-        React.createElement("div", { className: "flex items-center gap-1 bg-neutral-800 rounded-xl px-3 py-2" },
+        React.createElement("div", { className: "flex items-center gap-1 rounded-xl bull-field px-3 py-2" },
             React.createElement("input", { inputMode: "numeric", value: value === null || value === undefined ? "" : value, onChange: (e) => {
                     const raw = e.target.value.replace(/[^0-9]/g, "");
                     if (raw === "")
@@ -790,7 +790,7 @@ function App() {
                 "--breatheA": (0.015 + 0.06 * vt).toFixed(3),
                 "--dgrOp": (dgr * 0.5).toFixed(3),
                 "--dgrLine": (dgr * 0.9).toFixed(3),
-                "--bg": mixHex("#050403", "#0d0305", dgr * 0.8),
+                "--bg": mixHex(mixHex("#050403", "#17110a", vt), "#120406", dgr * 0.8),
             },
         };
     })();
@@ -961,6 +961,8 @@ function App() {
                     + ".bull-danger.tense{animation:bullTension 2.4s ease-in-out infinite;}"
                     + "@keyframes bullTension{0%,100%{opacity:1;}50%{opacity:.82;}}"
                     + ".bull-forceline{height:2px;border-radius:2px;margin:16px 0 4px;background:linear-gradient(90deg, var(--accent,#e0b040) 0%, transparent 45%, transparent 55%, rgba(220,38,38,var(--dgrLine,0)) 100%);opacity:.9;transition:background .8s;}"
+                    + ".bull-field{background:rgba(255,255,255,0.055);}"
+                    + ".bull-nav{background:rgba(6,5,4,0.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid rgba(255,255,255,0.05);}"
                     + "@media (prefers-reduced-motion: reduce){.bull-energy,.bull-danger.tense,.bull-fruit-throb{animation:none !important;}}" } }),
         React.createElement("div", { className: "bull-energy" }),
         React.createElement("div", { className: "bull-danger" + (ambient.tense ? " tense" : "") }),
@@ -1009,7 +1011,7 @@ function App() {
                 React.createElement(Card, null, today.intentionSet ? (React.createElement("div", { className: "flex items-start gap-2" },
                     React.createElement(Check, { size: 18, style: { color: TEAL }, className: "mt-0.5 shrink-0" }),
                     React.createElement("div", { className: "text-sm text-neutral-300" }, today.intentionText || "Intention set."))) : (React.createElement("div", { className: "flex gap-2" },
-                    React.createElement("input", { value: today.intentionText, onChange: (e) => setDay("intentionText", e.target.value), placeholder: "One purposeful thing today\u2026", className: "flex-1 bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
+                    React.createElement("input", { value: today.intentionText, onChange: (e) => setDay("intentionText", e.target.value), placeholder: "One purposeful thing today\u2026", className: "flex-1 rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
                     React.createElement("button", { onClick: () => setDay("intentionSet", true), className: "px-4 rounded-xl text-neutral-950 text-sm font-bold uppercase", style: { background: TEAL } }, "Set")))),
                 React.createElement(SectionLabel, null, "Accountability"),
                 React.createElement(Card, { className: therapistStatus !== "scheduled" ? "border border-amber-500/50" : "" },
@@ -1021,20 +1023,20 @@ function App() {
                         React.createElement("input", { type: "datetime-local", value: data.settings.nextCheckin ? new Date(data.settings.nextCheckin - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "", onChange: (e) => {
                                 const v = e.target.value;
                                 setSetting("nextCheckin", v ? new Date(v).getTime() : null);
-                            }, className: "flex-1 bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none text-neutral-100" }),
+                            }, className: "flex-1 rounded-xl bull-field px-3 py-2 text-sm outline-none text-neutral-100" }),
                         data.settings.nextCheckin && (React.createElement("button", { onClick: () => setSetting("nextCheckin", null), className: "px-3 rounded-xl bg-neutral-800 text-neutral-400 text-xs uppercase tracking-wide" }, "Clear")))),
                 React.createElement(SectionLabel, null, "Risk Factors Today"),
-                React.createElement(Card, null,
+                React.createElement(Rows, null,
                     prevRisks.map((it) => (React.createElement(YesNo, { key: it.id, mode: "risk", label: it.label, value: today.checks[it.id] === undefined ? null : today.checks[it.id], onChange: (v) => setCheck(it.id, v) }))),
-                    React.createElement("div", { className: "py-2.5 border-b border-neutral-800" },
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-300 mb-2 font-semibold" }, "Content Access Today"),
+                    React.createElement("div", { className: "py-4", style: { borderBottom: "1px solid rgba(255,255,255,0.045)" } },
+                        React.createElement("div", { className: "text-[13.5px] text-neutral-300 tracking-[0.02em] mb-2.5" }, "Content Access Today"),
                         React.createElement(Seg, { value: today.access, onChange: (v) => setDay("access", v), options: [{ v: "low", label: "Low", tone: "teal" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }] })),
-                    React.createElement("div", { className: "py-2.5" },
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-300 mb-2 font-semibold" }, "Checking Out Women"),
+                    React.createElement("div", { className: "py-4" },
+                        React.createElement("div", { className: "text-[13.5px] text-neutral-300 tracking-[0.02em] mb-2.5" }, "Checking Out Women"),
                         React.createElement(Seg, { value: today.checkout, onChange: (v) => setDay("checkout", v), options: [{ v: "none", label: "None", tone: "teal" }, { v: "few", label: "A Few", tone: "warn" }, { v: "lot", label: "A Lot", tone: "risk" }] }))),
                 prevHabits.length > 0 && (React.createElement(React.Fragment, null,
                     React.createElement(SectionLabel, null, "Protective Habits"),
-                    React.createElement(Card, null, prevHabits.map((it) => (React.createElement(YesNo, { key: it.id, mode: "protective", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))))),
+                    React.createElement(Rows, null, prevHabits.map((it) => (React.createElement(YesNo, { key: it.id, mode: "protective", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))))),
                 React.createElement(SectionLabel, null, "Recovery"),
                 React.createElement(Card, null,
                     React.createElement(NumField, { label: "Recovery Score", value: today.recovery, onChange: (v) => setDay("recovery", v), suffix: "%" })),
@@ -1051,7 +1053,7 @@ function App() {
                             (today.purposeRating === n ? "bg-neutral-200 text-neutral-950 border-neutral-200" : "border-neutral-700 text-neutral-400") }, n))))),
                 React.createElement(GroupHeader, { icon: Zap, color: AMBER }, "Sexual Vigour"),
                 React.createElement(SectionLabel, null, "Priming Actions"),
-                React.createElement(Card, null, primeToday.map((it) => (React.createElement(YesNo, { key: it.id, mode: "vigour", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))),
+                React.createElement(Rows, null, primeToday.map((it) => (React.createElement(YesNo, { key: it.id, mode: "vigour", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))),
                 React.createElement(SectionLabel, null, "Supplements"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex flex-wrap gap-2" }, data.settings.supplements.map((s) => {
@@ -1137,7 +1139,7 @@ function App() {
                 React.createElement("div", { className: "font-serif text-2xl text-neutral-100 mb-4" }, "Settings"),
                 React.createElement(SectionLabel, null, "Your Purpose Card"),
                 React.createElement(Card, null,
-                    React.createElement("textarea", { value: data.settings.purposeText, onChange: (e) => setSetting("purposeText", e.target.value), rows: 6, className: "w-full bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none text-neutral-200 leading-relaxed" }),
+                    React.createElement("textarea", { value: data.settings.purposeText, onChange: (e) => setSetting("purposeText", e.target.value), rows: 6, className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-neutral-200 leading-relaxed" }),
                     React.createElement("div", { className: "text-xs text-neutral-500 mt-1" }, "Shown when you tap Urge.")),
                 React.createElement(SectionLabel, null, "Prevention Checklist Items"),
                 React.createElement(Card, null, items.filter((i) => i.list === "prev").map((it) => React.createElement(ItemEditorRow, { key: it.id, item: it }))),
@@ -1146,7 +1148,7 @@ function App() {
                 React.createElement("div", { className: "mt-3" }, !showAdd ? (React.createElement("button", { onClick: () => setShowAdd(true), className: "w-full py-3 rounded-2xl border border-dashed border-neutral-700 text-neutral-400 text-sm flex items-center justify-center gap-1.5 uppercase tracking-wide" },
                     React.createElement(Plus, { size: 16 }),
                     " Add An Item")) : (React.createElement(Card, null,
-                    React.createElement("input", { value: addForm.label, onChange: (e) => setAddForm({ ...addForm, label: e.target.value }), placeholder: "Item name\u2026", className: "w-full bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none placeholder-neutral-600 mb-3" }),
+                    React.createElement("input", { value: addForm.label, onChange: (e) => setAddForm({ ...addForm, label: e.target.value }), placeholder: "Item name\u2026", className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600 mb-3" }),
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "List"),
                     React.createElement(Seg, { value: addForm.list, allowClear: false, onChange: (v) => v && setAddForm({ ...addForm, list: v }), options: [{ v: "prev", label: "Prevention" }, { v: "prime", label: "Vigour" }] }),
                     addForm.list === "prev" && (React.createElement(React.Fragment, null,
@@ -1172,7 +1174,7 @@ function App() {
                         React.createElement("button", { onClick: () => setSetting("supplements", data.settings.supplements.filter((x) => x !== s)) },
                             React.createElement(Trash2, { size: 15, className: "text-neutral-600" }))))),
                     React.createElement("div", { className: "flex gap-2 mt-3" },
-                        React.createElement("input", { value: newSup, onChange: (e) => setNewSup(e.target.value), placeholder: "Add supplement\u2026", className: "flex-1 bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
+                        React.createElement("input", { value: newSup, onChange: (e) => setNewSup(e.target.value), placeholder: "Add supplement\u2026", className: "flex-1 rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
                         React.createElement("button", { onClick: () => { const v = newSup.trim(); if (v && !data.settings.supplements.includes(v))
                                 setSetting("supplements", [...data.settings.supplements, v]); setNewSup(""); }, className: "px-3 rounded-xl bg-neutral-200 text-neutral-950" },
                             React.createElement(Plus, { size: 16 })))),
@@ -1182,10 +1184,10 @@ function App() {
                     React.createElement("div", { className: "flex gap-2 mb-3" },
                         React.createElement("div", { className: "flex-1" },
                             React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1" }, "Morning"),
-                            React.createElement("input", { type: "time", value: data.settings.morningReminderTime || "08:00", onChange: (e) => setSetting("morningReminderTime", e.target.value), className: "w-full bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none text-neutral-100" })),
+                            React.createElement("input", { type: "time", value: data.settings.morningReminderTime || "08:00", onChange: (e) => setSetting("morningReminderTime", e.target.value), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-neutral-100" })),
                         React.createElement("div", { className: "flex-1" },
                             React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1" }, "Evening"),
-                            React.createElement("input", { type: "time", value: data.settings.eveningReminderTime || "21:30", onChange: (e) => setSetting("eveningReminderTime", e.target.value), className: "w-full bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none text-neutral-100" }))),
+                            React.createElement("input", { type: "time", value: data.settings.eveningReminderTime || "21:30", onChange: (e) => setSetting("eveningReminderTime", e.target.value), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-neutral-100" }))),
                     React.createElement("button", { onClick: () => downloadReminderIcs(data.settings), className: "w-full py-2.5 rounded-xl text-neutral-950 text-xs font-bold uppercase tracking-wide", style: { background: TEAL } }, "Download Reminders (.ics)")),
                 React.createElement(SectionLabel, null, "Accountability Frequency"),
                 React.createElement(Card, null,
@@ -1196,7 +1198,7 @@ function App() {
                         React.createElement("input", { type: "date", value: data.settings.manualLastRelapseDate ? new Date(data.settings.manualLastRelapseDate - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : "", onChange: (e) => {
                                 const v = e.target.value;
                                 setSetting("manualLastRelapseDate", v ? new Date(v + "T00:00:00").getTime() : null);
-                            }, className: "flex-1 bg-neutral-800 rounded-xl px-3 py-2 text-sm outline-none text-neutral-100" }),
+                            }, className: "flex-1 rounded-xl bull-field px-3 py-2 text-sm outline-none text-neutral-100" }),
                         data.settings.manualLastRelapseDate && (React.createElement("button", { onClick: () => setSetting("manualLastRelapseDate", null), className: "px-3 rounded-xl bg-neutral-800 text-neutral-400 text-xs uppercase tracking-wide" }, "Clear")))),
                 React.createElement(SectionLabel, null, "Data"),
                 React.createElement(Card, null,
@@ -1240,7 +1242,7 @@ function App() {
                                 }, className: "flex-1 py-2 rounded-xl bg-rose-500 text-neutral-50 text-sm font-bold uppercase" }, "Wipe Everything"),
                             React.createElement("button", { onClick: () => setResetStep(0), className: "flex-1 py-2 rounded-xl bg-neutral-800 text-neutral-300 text-sm uppercase" }, "Cancel")))),
                     React.createElement("div", { className: "text-xs text-neutral-600 mt-3" }, "On-device only."))))),
-        React.createElement("div", { className: "fixed bottom-0 inset-x-0 bg-black border-t border-neutral-900", style: { paddingBottom: "env(safe-area-inset-bottom, 0px)" } },
+        React.createElement("div", { className: "fixed bottom-0 inset-x-0 z-[45] bull-nav", style: { paddingBottom: "env(safe-area-inset-bottom, 0px)" } },
             React.createElement("div", { className: "max-w-md mx-auto flex" },
                 React.createElement(NavBtn, { id: "today", icon: Shield, label: "Today" }),
                 React.createElement(NavBtn, { id: "stats", icon: BarChart3, label: "Patterns" }),
