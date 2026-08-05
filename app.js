@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "https://esm.sh/react@18.3.1";
 /* ---------- icons (self-contained, no external icon package) ---------- */
 const IconBase = ({ children, size = 20, ...p }) => (React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", ...p }, children));
+const CalIcon = (p) => React.createElement(IconBase, { ...p }, React.createElement("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }), React.createElement("path", { d: "M16 2v4M8 2v4M3 10h18" }));
 const Flame = (p) => React.createElement(IconBase, { ...p },
     React.createElement("path", { d: "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" }));
 const Wind = (p) => React.createElement(IconBase, { ...p },
@@ -966,8 +967,8 @@ function App() {
         };
     })();
     const logUrge = () => { persist({ ...data, urges: [...data.urges, { ts: Date.now() }] }); setBreathing(true); };
-    const logRelapse = () => {
-        persist({ ...data, relapses: [...data.relapses, { ts: Date.now() }] });
+    const logRelapse = (type) => {
+        persist({ ...data, relapses: [...data.relapses, { ts: Date.now(), type: type || "orgasm" }] });
         setConfirmRelapse(false);
         setJustRelapsed(true);
     };
@@ -1019,6 +1020,8 @@ function App() {
             vigour: ht ? (hd / ht) * 100 : null,
             urges: data.urges.filter((u) => u.ts >= from).length,
             relapses: data.relapses.filter((r) => r.ts >= from).length,
+            orgasms: data.relapses.filter((r) => r.ts >= from && (r.type || "orgasm") === "orgasm").length,
+            edges: data.relapses.filter((r) => r.ts >= from && r.type === "edge").length,
             wetDreams: (data.wetDreams || []).filter((w) => w.ts >= from).length,
         };
     };
@@ -1061,6 +1064,8 @@ function App() {
     };
     const correlations = data.relapses.length < 3 ? null : correlationsFor(data.relapses.map((r) => r.ts));
     const wetDreamCorrelations = (data.wetDreams || []).length < 3 ? null : correlationsFor(data.wetDreams.map((w) => w.ts));
+    const edgeEvents = data.relapses.filter((r) => r.type === "edge");
+    const edgeCorrelations = edgeEvents.length < 3 ? null : correlationsFor(edgeEvents.map((r) => r.ts));
     const last14 = (() => {
         const out = [];
         for (let i = 13; i >= 0; i--) {
@@ -1130,7 +1135,7 @@ function App() {
                     React.createElement(Trash2, { size: 13 }),
                     " Remove Item"))))));
     };
-    return (React.createElement("div", { className: "min-h-screen pb-24", style: { WebkitTapHighlightColor: "transparent", background: "var(--bg, #faf6ef)", color: "var(--ink, #2a2419)", transition: "background 0.8s, color 0.8s", ...ambient.vars } },
+    return (React.createElement("div", { className: "min-h-screen pb-24 overflow-x-hidden", style: { WebkitTapHighlightColor: "transparent", background: "var(--bg, #faf6ef)", color: "var(--ink, #2a2419)", transition: "background 0.8s, color 0.8s", ...ambient.vars } },
         React.createElement("style", { dangerouslySetInnerHTML: { __html: "@keyframes bullFruitThrob{0%,100%{transform:scale(1,1);}14%{transform:scale(1.07,1.04);}26%{transform:scale(1.0,.995);}38%{transform:scale(1.1,1.05);}58%{transform:scale(1,1);}}.bull-fruit-throb{animation:bullFruitThrob 1.9s ease-in-out infinite;}"
                     + ".bull-energy{position:fixed;top:-16%;left:50%;width:150%;aspect-ratio:1.2;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 30%, var(--energyCol, rgba(214,164,52,.18)) 0%, transparent 62%);opacity:var(--energyOp,.3);pointer-events:none;z-index:0;animation:bullEnergyBreathe 5s ease-in-out infinite;transition:opacity .8s;}"
                     + "@keyframes bullEnergyBreathe{0%,100%{transform:translateX(-50%) scale(1);}50%{transform:translateX(-50%) scale(calc(1 + var(--breatheA,0.03)));}}"
@@ -1152,15 +1157,16 @@ function App() {
                     React.createElement("div", { className: "w-6 h-6 rounded-md", style: { background: AMBER } }),
                     React.createElement("span", { className: "text-xs font-bold tracking-[0.3em]", style: { color: AMBER } }, "BULL")),
                 React.createElement("div", { className: "flex items-start justify-between" },
-                    React.createElement("div", null,
+                    React.createElement("div", { className: "min-w-0 flex-1" },
                         React.createElement("div", { className: "flex items-center gap-1.5" },
                             React.createElement("button", { onClick: () => setViewOffset(viewOffset - 1), className: "text-[#9a9285] px-1 -ml-1 text-lg leading-none active:text-[#6f6757]" }, "\u2039"),
-                            React.createElement("div", { className: "font-serif text-2xl text-[#2a2419]" }, isToday ? now.toLocaleDateString(undefined, { weekday: "long" }) : now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })),
+                            React.createElement("div", { className: "font-serif text-2xl text-[#2a2419] truncate" }, isToday ? now.toLocaleDateString(undefined, { weekday: "long" }) : now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })),
                             React.createElement("button", { onClick: () => viewOffset < 0 && setViewOffset(viewOffset + 1), disabled: viewOffset >= 0, className: "text-lg leading-none px-1 " + (viewOffset >= 0 ? "text-[#d4cec3]" : "text-[#9a9285] active:text-[#6f6757]") }, "\u203A"),
-                            React.createElement("button", { onClick: () => setShowMonth(true), className: "ml-1 px-2 py-1 rounded-lg text-[10px] uppercase tracking-[0.14em]", style: { border: "1px solid rgba(42,36,25,0.16)", color: "#8a8172" } }, "Month")),
+                            ),
                         !isToday && React.createElement("button", { onClick: () => setViewOffset(0), className: "text-[10px] uppercase tracking-widest font-bold mt-0.5", style: { color: AMBER } }, "\u270E Editing Past Day \u2014 Jump To Today"),
-                        isToday && React.createElement("div", { className: "text-sm text-[#8a8172]" },
-                            now.toLocaleDateString(undefined, { day: "numeric", month: "long" }),
+                        isToday && React.createElement("button", { onClick: () => setShowMonth(true), className: "text-sm text-[#8a8172] text-left flex items-center gap-1.5 active:opacity-60" },
+                            React.createElement("span", { style: { borderBottom: "1px dashed rgba(42,36,25,0.28)" } }, now.toLocaleDateString(undefined, { day: "numeric", month: "long" })),
+                            React.createElement(CalIcon, { size: 12, style: { opacity: 0.55 } }),
                             fastToday && React.createElement("span", { style: { color: AMBER } }, " \u00B7 FASTING DAY")),
                         React.createElement("div", { className: "flex items-center gap-1.5 mt-2", style: { color: AMBER } },
                             React.createElement(Flame, { size: 16 }),
@@ -1169,9 +1175,9 @@ function App() {
                                 "% CLEAN \u00B7 ",
                                 windowDays,
                                 "D"))),
-                    React.createElement("div", { className: "flex gap-4" },
-                        React.createElement(ShieldRisk, { risk: risk, size: 68 }),
-                        React.createElement(VigourFruit, { pct: vigourPct, size: 68 }))),
+                    React.createElement("div", { className: "flex gap-3 shrink-0" },
+                        React.createElement(ShieldRisk, { risk: risk, size: 58 }),
+                        React.createElement(VigourFruit, { pct: vigourPct, size: 58 }))),
                 React.createElement("div", { className: "bull-forceline" }),
                 healthImported && isToday && (React.createElement("div", { className: "mt-3 rounded-xl px-3 py-2 text-[11px] tracking-wide", style: { background: "rgba(201,150,44,0.12)", color: "#8a7333" } },
                     "Imported from Health: " + healthImported.join(", "))),
@@ -1266,10 +1272,11 @@ function App() {
                     !confirmRelapse && React.createElement("button", { onClick: () => setConfirmRelapse(true), className: "text-xs text-[#9a9285] underline uppercase tracking-wide" }, "Log A Relapse"),
                     !confirmWetDream && React.createElement("button", { onClick: () => setConfirmWetDream(true), className: "text-xs text-[#9a9285] underline uppercase tracking-wide" }, "Log A Wet Dream")),
                 isToday && confirmRelapse && (React.createElement(Card, { className: "mt-3" },
-                    React.createElement("div", { className: "text-sm text-[#4a4335] mb-3" }, "Log a relapse now? Honesty keeps the data \u2014 and you \u2014 sharp."),
-                    React.createElement("div", { className: "flex gap-2" },
-                        React.createElement("button", { onClick: logRelapse, className: "flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold uppercase" }, "Yes, Log It"),
-                        React.createElement("button", { onClick: () => setConfirmRelapse(false), className: "flex-1 py-2.5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-sm uppercase" }, "Cancel")))),
+                    React.createElement("div", { className: "text-sm text-[#4a4335] mb-3" }, "What happened? Honesty keeps the data \u2014 and you \u2014 sharp."),
+                    React.createElement("div", { className: "flex gap-2 mb-2" },
+                        React.createElement("button", { onClick: () => logRelapse("orgasm"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide", style: { background: "#b62f2b" } }, "Orgasmed"),
+                        React.createElement("button", { onClick: () => logRelapse("edge"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide", style: { background: "#c2701e" } }, "Edged Only")),
+                    React.createElement("button", { onClick: () => setConfirmRelapse(false), className: "w-full py-2.5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-sm uppercase" }, "Cancel"))),
                 isToday && confirmWetDream && (React.createElement(Card, { className: "mt-3" },
                     React.createElement("div", { className: "text-sm text-[#4a4335] mb-3" }, "Log a wet dream for today? Used only for Pattern correlation \u2014 same as relapses."),
                     React.createElement("div", { className: "flex gap-2" },
@@ -1290,7 +1297,8 @@ function App() {
                         React.createElement("div", { className: "font-mono text-2xl font-bold mt-1", style: { color: TEAL } }, st.urges)),
                     React.createElement(Card, null,
                         React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Relapses"),
-                        React.createElement("div", { className: "font-mono text-2xl font-bold text-[#2a2419] mt-1" }, st.relapses)),
+                        React.createElement("div", { className: "font-mono text-2xl font-bold text-[#2a2419] mt-1" }, st.relapses),
+                        React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-1 tracking-wide" }, st.orgasms + " orgasm \u00B7 " + st.edges + " edged")),
                     React.createElement(Card, null,
                         React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Wet Dreams"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold mt-1", style: { color: AMBER } }, st.wetDreams)),
@@ -1315,6 +1323,15 @@ function App() {
                         "Present on ",
                         c.rel,
                         "% of relapse days \u00B7 ",
+                        c.base,
+                        "% of all days")))))),
+                React.createElement(SectionLabel, null, "Edging Patterns"),
+                React.createElement(Card, null, edgeCorrelations === null ? (React.createElement("div", { className: "text-sm text-[#6f6757]" }, "Unlocks after 3 logged edging episodes.")) : edgeCorrelations.length === 0 ? (React.createElement("div", { className: "text-sm text-[#6f6757]" }, "Keep logging.")) : (edgeCorrelations.map((c) => (React.createElement("div", { key: c.label, className: "py-2", style: { borderBottom: "1px solid rgba(42,36,25,0.09)" } },
+                    React.createElement("div", { className: "text-sm text-[#332d20] uppercase tracking-wide font-semibold" }, c.label),
+                    React.createElement("div", { className: "text-xs text-[#8a8172]" },
+                        "Present on ",
+                        c.rel,
+                        "% of edging days \u00B7 ",
                         c.base,
                         "% of all days")))))),
                 React.createElement(SectionLabel, null, "Wet Dream Patterns"),
