@@ -341,7 +341,7 @@ const W_PROT = { vhigh: 11, high: 8, med: 5, low: 2 };
 const W_ADH = { vhigh: 4, high: 3, med: 2, low: 1 };
 const WEIGHT_RANK = { vhigh: 4, high: 3, med: 2, low: 1 };
 const byWeightDesc = (a, b) => (WEIGHT_RANK[b.weight] || 0) - (WEIGHT_RANK[a.weight] || 0);
-const WEIGHT_SCALE = { high: 1, med: 0.6, low: 0.3 };
+const WEIGHT_SCALE = { vhigh: 1.4, high: 1, med: 0.6, low: 0.3 };
 /* ---------- default items ---------- */
 const DEFAULT_ITEMS = [
     { id: "lonely", label: "Home Alone, Unstructured Time", list: "prev", kind: "risk", weight: "high", freq: "daily" },
@@ -470,7 +470,7 @@ function adherenceExpected(item, date, settings) {
 function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty = 0) {
     const d = day || emptyDay();
     const wOf = (id, fallback) => (items.find((i) => i.id === id) || {}).weight || fallback;
-    const scaleOf = (id, fallback) => WEIGHT_SCALE[wOf(id, fallback)];
+    const scaleOf = (id, fallback) => WEIGHT_SCALE[wOf(id, fallback)] || WEIGHT_SCALE[fallback] || 1;
     let r = 15;
     items.filter((i) => i.list === "prev" && (i.kind === "risk" || i.kind === "habit")).forEach((it) => {
         const v = d.checks ? d.checks[it.id] : undefined;
