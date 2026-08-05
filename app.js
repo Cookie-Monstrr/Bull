@@ -347,7 +347,7 @@ const DEFAULT_ITEMS = [
     { id: "lonely", label: "Home Alone, Unstructured Time", list: "prev", kind: "risk", weight: "high", freq: "daily" },
     { id: "junk", label: "Junk Food", list: "prev", kind: "risk", weight: "med", freq: "daily" },
     { id: "caffeine", label: "Caffeine", list: "prev", kind: "risk", weight: "med", freq: "daily" },
-    { id: "coldplunge", label: "Cold Plunge", list: "prev", kind: "habit", weight: "med", freq: "daily" },
+    { id: "coldplunge", label: "Cold Plunge", list: "prev", kind: "habit", weight: "med", freq: "daily", excusable: true },
     { id: "nasalclear", label: "Nasal Rinse", list: "prev", kind: "habit", weight: "med", freq: "daily" },
     { id: "contentAccess", label: "Content Access", sub: "Low / Medium / High, logged daily", list: "prev", kind: "tier", weight: "high" },
     { id: "checkout", label: "Checking Out Women", sub: "None / A Few / A Lot, logged daily", list: "prev", kind: "tier", weight: "high" },
@@ -356,10 +356,12 @@ const DEFAULT_ITEMS = [
     { id: "purposeHigh", label: "High-Purpose Day (4–5)", sub: "Auto — protective, from your Evening Review", list: "prev", kind: "derived", weight: "med" },
     { id: "accountabilityGap", label: "Accountability Not On Track", sub: "Auto — nothing booked, overdue, or too far out", list: "prev", kind: "derived", weight: "high" },
     { id: "urgeSurvivalBonus", label: "Urges Survived Today", sub: "Auto — protective, from the Urge button", list: "prev", kind: "derived", weight: "med" },
-    { id: "kegels", label: "Kegels", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0] },
-    { id: "stretches", label: "Pelvic Floor Stretches", list: "prime", kind: "habit", weight: "med", freq: [1, 3, 5, 0] },
-    { id: "cardio", label: "Cardio / Boxing", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0] },
-    { id: "strength", label: "Strength Training", list: "prime", kind: "habit", weight: "med", freq: [2, 6] },
+    { id: "sickFlag", label: "Sick Day", sub: "Auto — from the Sick flag on Today", list: "prev", kind: "derived", weight: "med" },
+    { id: "travelFlag", label: "Travelling Day", sub: "Auto — from the Travelling flag on Today", list: "prev", kind: "derived", weight: "high" },
+    { id: "kegels", label: "Kegels", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0], excusable: true },
+    { id: "stretches", label: "Pelvic Floor Stretches", list: "prime", kind: "habit", weight: "med", freq: [1, 3, 5, 0], excusable: true },
+    { id: "cardio", label: "Cardio / Boxing", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0], excusable: true },
+    { id: "strength", label: "Strength Training", list: "prime", kind: "habit", weight: "med", freq: [2, 6], excusable: true },
     { id: "breathwork", label: "Breathwork Before Isha", list: "prime", kind: "habit", weight: "med", freq: "daily" },
     { id: "mouthtape", label: "Mouth Tape", list: "prime", kind: "habit", weight: "low", freq: "daily" },
     { id: "fasting", label: "Fasting", list: "prime", kind: "habit", weight: "med", freq: "daily", fastingAuto: true },
@@ -443,13 +445,20 @@ function migrate(old) {
     base.settings = { manualLastRelapseDate: null, fastLunarOnly: false, sleepWeight: 2, age: null, sex: null, vo2max: null, morningReminderTime: "08:00", eveningReminderTime: "21:30", ...base.settings };
     base.wetDreams = base.wetDreams || [];
     base.items = (base.items || []).filter((i) => i.id !== "latescreen");
-    const NEW_BUILTIN_IDS = ["contentAccess", "checkout", "recoveryLow", "purposeLow", "purposeHigh", "accountabilityGap", "urgeSurvivalBonus"];
+    const NEW_BUILTIN_IDS = ["contentAccess", "checkout", "recoveryLow", "purposeLow", "purposeHigh", "accountabilityGap", "urgeSurvivalBonus", "sickFlag", "travelFlag"];
     NEW_BUILTIN_IDS.forEach((id) => {
         if (!base.items.some((i) => i.id === id)) {
             const def = DEFAULT_ITEMS.find((i) => i.id === id);
             if (def)
                 base.items.push({ ...def });
         }
+    });
+    /* backfill excusable defaults onto existing saved items that predate the flag */
+    base.items = base.items.map((i) => {
+        if (i.excusable !== undefined)
+            return i;
+        const def = DEFAULT_ITEMS.find((x) => x.id === i.id);
+        return def && def.excusable ? { ...i, excusable: true } : i;
     });
     return { ...base, version: 6 };
 }
@@ -472,8 +481,13 @@ function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty 
     const wOf = (id, fallback) => (items.find((i) => i.id === id) || {}).weight || fallback;
     const scaleOf = (id, fallback) => WEIGHT_SCALE[wOf(id, fallback)] || WEIGHT_SCALE[fallback] || 1;
     let r = 15;
+    const flaggedDay = d.sick === true || d.travelling === true;
     items.filter((i) => i.list === "prev" && (i.kind === "risk" || i.kind === "habit")).forEach((it) => {
         const v = d.checks ? d.checks[it.id] : undefined;
+        /* excusable items are neutral on a sick/travelling day — neither earned nor lost,
+           so the flag's own weight carries the environmental risk without double-counting */
+        if (flaggedDay && it.excusable === true)
+            return;
         if (it.kind === "risk") {
             if (v === true)
                 r += W_RISK[it.weight] || W_RISK.med;
@@ -483,6 +497,10 @@ function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty 
                 r -= W_PROT[it.weight] || W_PROT.med;
         }
     });
+    if (d.sick === true)
+        r += W_RISK[wOf("sickFlag", "med")] || W_RISK.med;
+    if (d.travelling === true)
+        r += W_RISK[wOf("travelFlag", "high")] || W_RISK.high;
     const hasContentAccess = items.some((i) => i.id === "contentAccess");
     if (hasContentAccess) {
         const accessScale = scaleOf("contentAccess", "high");
@@ -524,8 +542,11 @@ function riskLogged(day, items) {
 function vigourForDay(day, date, items, settings) {
     const d = day || emptyDay();
     let total = 0, done = 0;
+    const flaggedDay = d.sick === true || d.travelling === true;
     items.filter((i) => i.list === "prime" && i.kind === "habit").forEach((it) => {
         if (!adherenceExpected(it, date, settings))
+            return;
+        if (flaggedDay && it.excusable === true)
             return;
         const w = W_ADH[it.weight] || 2;
         total += w;
@@ -1018,16 +1039,18 @@ function App() {
         let rSum = 0, rN = 0, hd = 0, ht = 0;
         Object.keys(data.days).forEach((k) => {
             const t = new Date(k + "T12:00:00");
-            if (t.getTime() < from || isFlagged(k))
+            if (t.getTime() < from)
                 return;
             if (riskLogged(data.days[k], items)) {
                 const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
                 rSum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeySet.has(k));
                 rN++;
             }
-            const r = vigourForDay({ ...emptyDay(), ...data.days[k] }, t, items, data.settings);
-            hd += r.done;
-            ht += r.total;
+            if (!isFlagged(k)) {
+                const r = vigourForDay({ ...emptyDay(), ...data.days[k] }, t, items, data.settings);
+                hd += r.done;
+                ht += r.total;
+            }
         });
         const vigAvg = ht ? (hd / ht) : 0.6;
         const protAvg = rN ? 1 - (rSum / rN) / 100 : 0.85;
@@ -1080,7 +1103,7 @@ function App() {
         const flagged = (k) => { const d = data.days[k]; return d && (d.sick === true || d.travelling === true); };
         const keys = Object.keys(data.days).filter((k) => {
             const t = new Date(k + "T12:00:00").getTime();
-            return t >= from && riskLogged(data.days[k], items) && !flagged(k);
+            return t >= from && riskLogged(data.days[k], items);
         });
         let sum = 0;
         keys.forEach((k) => {
@@ -1208,6 +1231,10 @@ function App() {
                 React.createElement("div", null,
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Weight"),
                     React.createElement(Seg, { value: item.weight, allowClear: false, onChange: (v) => v && updateItem(item.id, { weight: v }), options: [{ v: "low", label: "Low" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }, { v: "vhigh", label: "V.High", tone: "risk" }] })),
+                editable && (React.createElement("div", null,
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "On Sick / Travelling Days"),
+                    React.createElement(Seg, { value: item.excusable === true ? "excuse" : "count", allowClear: false, onChange: (v) => v && updateItem(item.id, { excusable: v === "excuse" }), options: [{ v: "count", label: "Still Counts" }, { v: "excuse", label: "Excused", tone: "teal" }] }),
+                    React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-1.5 leading-relaxed" }, item.excusable === true ? "Ignored entirely on flagged days \u2014 no credit, no penalty." : "Counts as normal even when you're sick or travelling."))),
                 editable && !item.fastingAuto && (React.createElement("div", null,
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Days"),
                     React.createElement("button", { onClick: () => updateItem(item.id, { freq: "daily" }), className: "px-3 py-1.5 rounded-lg text-xs uppercase border mb-1.5 " + (item.freq === "daily" ? "font-bold text-neutral-950" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: item.freq === "daily" ? { background: TEAL, borderColor: TEAL } : undefined }, "Every Day"),
