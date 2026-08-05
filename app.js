@@ -128,6 +128,94 @@ function downloadReminderIcs(settings) {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
+/* ---------- VO2 max bands ----------
+   Approximations of the widely-published Cooper Institute / ACSM age-and-sex
+   categories. Treat as indicative: verify against the current source before
+   relying on them clinically. */
+const VO2_BANDS = {
+    male: [
+        { maxAge: 29, cuts: [42, 46, 52, 56] },
+        { maxAge: 39, cuts: [41, 45, 50, 55] },
+        { maxAge: 49, cuts: [38, 43, 48, 53] },
+        { maxAge: 59, cuts: [35, 39, 44, 49] },
+        { maxAge: 200, cuts: [31, 35, 40, 45] },
+    ],
+    female: [
+        { maxAge: 29, cuts: [36, 40, 44, 50] },
+        { maxAge: 39, cuts: [34, 37, 42, 46] },
+        { maxAge: 49, cuts: [32, 35, 39, 45] },
+        { maxAge: 59, cuts: [28, 32, 36, 41] },
+        { maxAge: 200, cuts: [26, 29, 33, 37] },
+    ],
+};
+const VO2_LABELS = ["Poor", "Fair", "Good", "Excellent", "Superior"];
+function vo2Category(vo2, age, sex) {
+    if (!vo2 || !age || !sex)
+        return null;
+    const rows = VO2_BANDS[sex] || VO2_BANDS.male;
+    const row = rows.find((r) => age <= r.maxAge) || rows[rows.length - 1];
+    let idx = 0;
+    row.cuts.forEach((c) => { if (Number(vo2) >= c) idx += 1; });
+    return { label: VO2_LABELS[idx], idx, cuts: row.cuts };
+}
+/* ---------- month view ---------- */
+function MonthView({ data, items, onPick, onClose }) {
+    const [mOff, setMOff] = useState(0);
+    const now = new Date();
+    const base = new Date(now.getFullYear(), now.getMonth() + mOff, 1);
+    const year = base.getFullYear(), month = base.getMonth();
+    const daysIn = new Date(year, month + 1, 0).getDate();
+    const startDow = base.getDay();
+    const tk = todayKey();
+    const relKeys = new Set(data.relapses.map((r) => dateKey(new Date(r.ts))));
+    const wetKeys = new Set((data.wetDreams || []).map((w) => dateKey(new Date(w.ts))));
+    const t0 = new Date(); t0.setHours(12, 0, 0, 0);
+    const cells = [];
+    for (let i = 0; i < startDow; i++)
+        cells.push(React.createElement("div", { key: "b" + i }));
+    for (let n = 1; n <= daysIn; n++) {
+        const d = new Date(year, month, n, 12, 0, 0, 0);
+        const k = dateKey(d);
+        const rec = data.days[k];
+        const future = d.getTime() > t0.getTime();
+        const isToday = k === tk;
+        const relapse = relKeys.has(k);
+        const wet = wetKeys.has(k);
+        const flagged = rec && (rec.sick === true || rec.travelling === true);
+        const v = rec ? vigourForDay({ ...emptyDay(), ...rec }, d, items, data.settings) : null;
+        const pct = v && v.total ? v.done / v.total : 0;
+        let style = { border: "1px solid rgba(42,36,25,0.10)", background: "transparent", color: "#b8b0a2" };
+        if (future)
+            style = { border: "1px solid rgba(42,36,25,0.05)", background: "transparent", color: "#d4cec3" };
+        else if (relapse)
+            style = { border: "1px solid #b62f2b", background: "rgba(182,47,43,0.85)", color: "#fff5f4", fontWeight: 700 };
+        else if (flagged)
+            style = { border: "1px dashed rgba(42,36,25,0.28)", background: "rgba(42,36,25,0.04)", color: "#8a8172" };
+        else if (rec)
+            style = { border: "1px solid rgba(201,150,44," + (0.25 + 0.5 * pct).toFixed(2) + ")", background: "rgba(201,150,44," + (0.10 + 0.55 * pct).toFixed(2) + ")", color: "#4a4335", fontWeight: 600 };
+        if (isToday)
+            style.boxShadow = "0 0 0 2px #2a2419";
+        cells.push(React.createElement("button", {
+            key: k, disabled: future,
+            onClick: () => { if (!future) { onPick(Math.round((d.getTime() - t0.getTime()) / DAY_MS)); onClose(); } },
+            style: { ...style, borderRadius: 12 },
+            className: "aspect-square flex flex-col items-center justify-center text-[12px] relative active:scale-95 transition-transform",
+        }, n, wet && React.createElement("span", { className: "absolute bottom-1 w-1 h-1 rounded-full", style: { background: "#c2701e" } })));
+    }
+    return (React.createElement("div", { className: "fixed inset-0 z-[60] overflow-y-auto", style: { background: "#faf6ef" } },
+        React.createElement("div", { className: "max-w-[430px] mx-auto p-5", style: { paddingTop: "calc(env(safe-area-inset-top,0px) + 18px)" } },
+            React.createElement("div", { className: "flex items-center justify-between mb-5" },
+                React.createElement("button", { onClick: () => setMOff(mOff - 1), className: "px-3 py-2 text-lg text-[#8a8172]" }, "\u2039"),
+                React.createElement("div", { className: "font-serif text-xl text-[#2a2419]" }, base.toLocaleDateString(undefined, { month: "long", year: "numeric" })),
+                React.createElement("button", { onClick: () => mOff < 0 && setMOff(mOff + 1), disabled: mOff >= 0, className: "px-3 py-2 text-lg " + (mOff >= 0 ? "text-[#d4cec3]" : "text-[#8a8172]") }, "\u203A")),
+            React.createElement("div", { className: "grid grid-cols-7 gap-1.5 mb-2" }, ["S", "M", "T", "W", "T", "F", "S"].map((w, i) => React.createElement("div", { key: i, className: "text-center text-[9px] uppercase tracking-[0.14em] text-[#9a9285]" }, w))),
+            React.createElement("div", { className: "grid grid-cols-7 gap-1.5" }, cells),
+            React.createElement("div", { className: "mt-6 space-y-1.5 text-[10px] uppercase tracking-[0.12em] text-[#9a9285]" },
+                React.createElement("div", null, "Gold fill \u00B7 logged day, deeper = higher vigour"),
+                React.createElement("div", null, "Crimson \u00B7 relapse    Dashed \u00B7 sick or travelling"),
+                React.createElement("div", null, "Amber dot \u00B7 wet dream    Outline \u00B7 today")),
+            React.createElement("button", { onClick: onClose, className: "w-full mt-7 py-3.5 rounded-2xl text-neutral-950 font-bold uppercase tracking-widest text-sm", style: { background: "var(--accent, #c9962c)" } }, "Close"))));
+}
 /* ---------- Apple Health receiver (Shortcuts opens Bull with query params) ---------- */
 function readHealthParams() {
     try {
@@ -206,6 +294,9 @@ const DEFAULT_SETTINGS = {
     manualLastRelapseDate: null,
     fastLunarOnly: false,
     sleepWeight: 2,
+    age: null,
+    sex: null,
+    vo2max: null,
     morningReminderTime: "08:00",
     eveningReminderTime: "21:30",
 };
@@ -270,7 +361,7 @@ function migrate(old) {
         const { lastTherapistCheckin, ...rest } = base.settings;
         base.settings = { ...rest, nextCheckin: base.settings.nextCheckin ?? null };
     }
-    base.settings = { manualLastRelapseDate: null, fastLunarOnly: false, sleepWeight: 2, morningReminderTime: "08:00", eveningReminderTime: "21:30", ...base.settings };
+    base.settings = { manualLastRelapseDate: null, fastLunarOnly: false, sleepWeight: 2, age: null, sex: null, vo2max: null, morningReminderTime: "08:00", eveningReminderTime: "21:30", ...base.settings };
     base.wetDreams = base.wetDreams || [];
     base.items = (base.items || []).filter((i) => i.id !== "latescreen");
     const NEW_BUILTIN_IDS = ["contentAccess", "checkout", "recoveryLow", "purposeLow", "purposeHigh", "accountabilityGap", "urgeSurvivalBonus"];
@@ -589,6 +680,15 @@ const SPLASH_LINES = [
 ];
 function Splash({ vigour, risk, cleanPct, streak, onDone }) {
     const [on, setOn] = useState(false);
+    const [exiting, setExiting] = useState(false);
+    const exitRef = useRef(false);
+    const finish = () => {
+        if (exitRef.current)
+            return;
+        exitRef.current = true;
+        setExiting(true);
+        setTimeout(onDone, 480);
+    };
     const [hype] = useState(() => SPLASH_LINES[Math.floor(Math.random() * SPLASH_LINES.length)]);
     const [vigDisp, setVigDisp] = useState(0);
     const [riskDisp, setRiskDisp] = useState(0);
@@ -608,12 +708,12 @@ function Splash({ vigour, risk, cleanPct, streak, onDone }) {
             };
             requestAnimationFrame(tick);
         }, 3200);
-        const done = setTimeout(onDone, 4700);
+        const done = setTimeout(finish, 4700);
         return () => { cancelAnimationFrame(raf1); clearTimeout(countStart); clearTimeout(done); };
     }, []);
     const c = 2 * Math.PI * 48;
     const offset = c - (Math.max(0, Math.min(100, vigour)) / 100) * c;
-    return (React.createElement("div", { className: "fixed inset-0 z-[70]", style: { background: "#faf6ef" }, onClick: onDone },
+    return (React.createElement("div", { className: "fixed inset-0 z-[70]", style: { background: "#faf6ef", opacity: exiting ? 0 : 1, transform: exiting ? "scale(1.04)" : "scale(1)", transition: "opacity 0.48s ease, transform 0.48s ease" }, onClick: finish },
         React.createElement("style", { dangerouslySetInnerHTML: { __html: SPLASH_CSS } }),
         React.createElement("div", { className: "bull-splash" + (on ? " on" : "") },
             React.createElement("div", { className: "glow" }),
@@ -760,6 +860,7 @@ function App() {
     const [viewOffset, setViewOffset] = useState(0);
     const [showSplash, setShowSplash] = useState(true);
     const [healthImported, setHealthImported] = useState(null);
+    const [showMonth, setShowMonth] = useState(false);
     const [addForm, setAddForm] = useState({ label: "", list: "prev", kind: "risk", weight: "med", daily: true, days: [] });
     const saveTimer = useRef(null);
     useEffect(() => {
@@ -1042,6 +1143,7 @@ function App() {
                     + "@media (prefers-reduced-motion: reduce){.bull-energy,.bull-danger.tense,.bull-fruit-throb{animation:none !important;}}" } }),
         React.createElement("div", { className: "bull-energy" }),
         React.createElement("div", { className: "bull-danger" + (ambient.tense ? " tense" : "") }),
+        showMonth && React.createElement(MonthView, { data: data, items: items, onPick: (off) => { setViewOffset(off); setView("today"); }, onClose: () => setShowMonth(false) }),
         showSplash && data && React.createElement(Splash, { vigour: vigourPct, risk: risk, cleanPct: cleanPct, streak: streak, onDone: () => setShowSplash(false) }),
         breathing && React.createElement(Breathe, { purposeText: data.settings.purposeText, onClose: () => setBreathing(false) }),
         React.createElement("div", { className: "max-w-md mx-auto px-4", style: { paddingTop: "calc(env(safe-area-inset-top, 0px) + 24px)" } },
@@ -1054,7 +1156,8 @@ function App() {
                         React.createElement("div", { className: "flex items-center gap-1.5" },
                             React.createElement("button", { onClick: () => setViewOffset(viewOffset - 1), className: "text-[#9a9285] px-1 -ml-1 text-lg leading-none active:text-[#6f6757]" }, "\u2039"),
                             React.createElement("div", { className: "font-serif text-2xl text-[#2a2419]" }, isToday ? now.toLocaleDateString(undefined, { weekday: "long" }) : now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })),
-                            React.createElement("button", { onClick: () => viewOffset < 0 && setViewOffset(viewOffset + 1), disabled: viewOffset >= 0, className: "text-lg leading-none px-1 " + (viewOffset >= 0 ? "text-neutral-800" : "text-[#9a9285] active:text-[#6f6757]") }, "\u203A")),
+                            React.createElement("button", { onClick: () => viewOffset < 0 && setViewOffset(viewOffset + 1), disabled: viewOffset >= 0, className: "text-lg leading-none px-1 " + (viewOffset >= 0 ? "text-[#d4cec3]" : "text-[#9a9285] active:text-[#6f6757]") }, "\u203A"),
+                            React.createElement("button", { onClick: () => setShowMonth(true), className: "ml-1 px-2 py-1 rounded-lg text-[10px] uppercase tracking-[0.14em]", style: { border: "1px solid rgba(42,36,25,0.16)", color: "#8a8172" } }, "Month")),
                         !isToday && React.createElement("button", { onClick: () => setViewOffset(0), className: "text-[10px] uppercase tracking-widest font-bold mt-0.5", style: { color: AMBER } }, "\u270E Editing Past Day \u2014 Jump To Today"),
                         isToday && React.createElement("div", { className: "text-sm text-[#8a8172]" },
                             now.toLocaleDateString(undefined, { day: "numeric", month: "long" }),
@@ -1127,7 +1230,14 @@ function App() {
                 React.createElement(Card, null,
                     React.createElement(NumField, { label: "Recovery Score", value: today.recovery, onChange: (v) => setDay("recovery", v), suffix: "%" }),
                     React.createElement(NumField, { label: "HRV", value: today.hrv, onChange: (v) => setDay("hrv", v), suffix: "ms" }),
-                    React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-2 leading-relaxed" }, "Auto-filled when opened from your Health shortcut.")),
+                    (() => {
+                        if (!hrvBaseline || today.hrv === null || today.hrv === undefined || today.hrv === "")
+                            return React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-2 leading-relaxed" }, "Auto-filled when opened from your Health shortcut. Needs 7+ readings before a baseline appears.");
+                        const pct = Math.round((Number(today.hrv) / hrvBaseline - 1) * 100);
+                        const low = pct <= -10;
+                        return React.createElement("div", { className: "text-[10px] mt-2 leading-relaxed", style: { color: low ? "#b62f2b" : "#8a7333" } },
+                            (pct >= 0 ? "+" : "") + pct + "% vs your " + Math.round(hrvBaseline) + "ms baseline" + (low ? " \u2014 notably suppressed" : ""));
+                    })()),
                 React.createElement(SectionLabel, null, "Day Flags"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex gap-2" },
@@ -1266,6 +1376,28 @@ function App() {
                         React.createElement("button", { onClick: () => { const v = newSup.trim(); if (v && !data.settings.supplements.includes(v))
                                 setSetting("supplements", [...data.settings.supplements, v]); setNewSup(""); }, className: "px-3 rounded-xl bg-neutral-200 text-neutral-950" },
                             React.createElement(Plus, { size: 16 })))),
+                React.createElement(SectionLabel, null, "Biometrics"),
+                React.createElement(Card, null,
+                    React.createElement("div", { className: "flex gap-2 mb-3" },
+                        React.createElement("div", { className: "flex-1" },
+                            React.createElement("div", { className: "text-[10px] uppercase tracking-[0.14em] text-[#8a8172] mb-1" }, "Age"),
+                            React.createElement("input", { type: "number", inputMode: "numeric", value: data.settings.age === null || data.settings.age === undefined ? "" : data.settings.age, onChange: (e) => setSetting("age", e.target.value === "" ? null : Number(e.target.value)), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" })),
+                        React.createElement("div", { className: "flex-1" },
+                            React.createElement("div", { className: "text-[10px] uppercase tracking-[0.14em] text-[#8a8172] mb-1" }, "VO2 Max"),
+                            React.createElement("input", { type: "number", inputMode: "decimal", value: data.settings.vo2max === null || data.settings.vo2max === undefined ? "" : data.settings.vo2max, onChange: (e) => setSetting("vo2max", e.target.value === "" ? null : Number(e.target.value)), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" }))),
+                    React.createElement("div", { className: "text-[10px] uppercase tracking-[0.14em] text-[#8a8172] mb-1.5" }, "Sex (for reference bands)"),
+                    React.createElement(Seg, { value: data.settings.sex, allowClear: false, onChange: (v) => v && setSetting("sex", v), options: [{ v: "male", label: "Male", tone: "teal" }, { v: "female", label: "Female", tone: "teal" }] }),
+                    (() => {
+                        const c = vo2Category(data.settings.vo2max, data.settings.age, data.settings.sex);
+                        if (!c)
+                            return React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-3 leading-relaxed" }, "Fill all three to see where your VO2 max sits on published age-and-sex bands.");
+                        return React.createElement("div", { className: "mt-3" },
+                            React.createElement("div", { className: "flex items-baseline gap-2" },
+                                React.createElement("span", { className: "font-serif text-lg", style: { color: "var(--accent, #c9962c)" } }, c.label),
+                                React.createElement("span", { className: "text-[10px] uppercase tracking-[0.14em] text-[#9a9285]" }, "for your age and sex")),
+                            React.createElement("div", { className: "flex gap-1 mt-2" }, VO2_LABELS.map((L, i) => React.createElement("div", { key: L, className: "flex-1 h-1.5 rounded-full", style: { background: i <= c.idx ? "var(--accent, #c9962c)" : "rgba(42,36,25,0.10)" } }))),
+                            React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-2 leading-relaxed" }, "Band edges: " + c.cuts.join(" \u00B7 ") + " ml/kg/min. Approximated from the published Cooper Institute / ACSM categories \u2014 indicative, not clinical."));
+                    })()),
                 React.createElement(SectionLabel, null, "Daily Reminders"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "text-xs text-[#8a8172] mb-3 leading-relaxed" }, "Bull is a static app with no server, so it can't push notifications on its own. This exports two daily recurring reminders as a calendar file \u2014 import it once into iOS Calendar or Reminders for real notifications."),

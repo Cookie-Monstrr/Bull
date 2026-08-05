@@ -1,4 +1,4 @@
-const CACHE = "bull-v8";
+const CACHE = "bull-v10";
 const SHELL = [
   "./",
   "./index.html",
