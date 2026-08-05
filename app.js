@@ -476,11 +476,11 @@ function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty 
         const v = d.checks ? d.checks[it.id] : undefined;
         if (it.kind === "risk") {
             if (v === true)
-                r += W_RISK[it.weight];
+                r += W_RISK[it.weight] || W_RISK.med;
         }
         else {
             if (v === true)
-                r -= W_PROT[it.weight];
+                r -= W_PROT[it.weight] || W_PROT.med;
         }
     });
     const hasContentAccess = items.some((i) => i.id === "contentAccess");
