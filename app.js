@@ -336,9 +336,11 @@ function mixHex(h1, h2, t) {
 }
 const CAUTION = "#c2701e";
 /* ---------- weights ---------- */
-const W_RISK = { high: 20, med: 10, low: 5 };
-const W_PROT = { high: 8, med: 5, low: 2 };
-const W_ADH = { high: 3, med: 2, low: 1 };
+const W_RISK = { vhigh: 30, high: 20, med: 10, low: 5 };
+const W_PROT = { vhigh: 11, high: 8, med: 5, low: 2 };
+const W_ADH = { vhigh: 4, high: 3, med: 2, low: 1 };
+const WEIGHT_RANK = { vhigh: 4, high: 3, med: 2, low: 1 };
+const byWeightDesc = (a, b) => (WEIGHT_RANK[b.weight] || 0) - (WEIGHT_RANK[a.weight] || 0);
 const WEIGHT_SCALE = { high: 1, med: 0.6, low: 0.3 };
 /* ---------- default items ---------- */
 const DEFAULT_ITEMS = [
@@ -1053,10 +1055,10 @@ function App() {
         setConfirmWetDream(false);
     };
     const now = new Date(Date.now() + viewOffset * DAY_MS);
-    const prevRisks = items.filter((i) => i.list === "prev" && i.kind === "risk" && scheduledOn(i, now));
-    const prevHabits = items.filter((i) => i.list === "prev" && i.kind === "habit" && scheduledOn(i, now));
+    const prevRisks = items.filter((i) => i.list === "prev" && i.kind === "risk" && scheduledOn(i, now)).sort(byWeightDesc);
+    const prevHabits = items.filter((i) => i.list === "prev" && i.kind === "habit" && scheduledOn(i, now)).sort(byWeightDesc);
     const fastToday = fastingSuggested(now, data.settings.fastLunarOnly);
-    const primeToday = items.filter((i) => i.list === "prime" && i.kind === "habit" && (i.fastingAuto ? fastToday : scheduledOn(i, now)));
+    const primeToday = items.filter((i) => i.list === "prime" && i.kind === "habit" && (i.fastingAuto ? fastToday : scheduledOn(i, now))).sort(byWeightDesc);
     /* ---- stats ---- */
     const statsFor = () => {
         const nowTs = Date.now();
@@ -1187,16 +1189,19 @@ function App() {
             React.createElement("button", { onClick: () => setExpandedItem(expandedItem === item.id ? null : item.id), className: "w-full flex items-center justify-between text-left" },
                 React.createElement("div", { className: "pr-2" },
                     React.createElement("div", { className: "text-sm text-[#332d20] uppercase tracking-wide font-semibold" }, item.label),
-                    React.createElement("div", { className: "text-xs text-[#8a8172] mt-0.5" }, kindLabel + " · " + item.weight.toUpperCase() + (editable ? " · " + freqSummary(item) : "")),
+                    React.createElement("div", { className: "text-xs text-[#8a8172] mt-0.5" }, kindLabel + " · " + (item.weight === "vhigh" ? "V.HIGH" : item.weight.toUpperCase()) + (editable ? " · " + freqSummary(item) : "")),
                     item.sub && item.list !== "prime" && React.createElement("div", { className: "text-xs text-[#9a9285] mt-0.5 normal-case" }, item.sub)),
                 React.createElement(Pencil, { size: 14, className: "text-[#9a9285] shrink-0" })),
             expandedItem === item.id && (React.createElement("div", { className: "mt-3 space-y-3" },
+                React.createElement("div", null,
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Name"),
+                    React.createElement("input", { type: "text", value: item.label, onChange: (e) => updateItem(item.id, { label: e.target.value }), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" })),
                 item.list === "prev" && editable && (React.createElement("div", null,
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Type"),
                     React.createElement(Seg, { value: item.kind, allowClear: false, onChange: (v) => v && updateItem(item.id, { kind: v }), options: [{ v: "risk", label: "Risk", tone: "risk" }, { v: "habit", label: "Protective", tone: "teal" }] }))),
                 React.createElement("div", null,
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Weight"),
-                    React.createElement(Seg, { value: item.weight, allowClear: false, onChange: (v) => v && updateItem(item.id, { weight: v }), options: [{ v: "low", label: "Low" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }] })),
+                    React.createElement(Seg, { value: item.weight, allowClear: false, onChange: (v) => v && updateItem(item.id, { weight: v }), options: [{ v: "low", label: "Low" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }, { v: "vhigh", label: "V.High", tone: "risk" }] })),
                 editable && !item.fastingAuto && (React.createElement("div", null,
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Days"),
                     React.createElement("button", { onClick: () => updateItem(item.id, { freq: "daily" }), className: "px-3 py-1.5 rounded-lg text-xs uppercase border mb-1.5 " + (item.freq === "daily" ? "font-bold text-neutral-950" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: item.freq === "daily" ? { background: TEAL, borderColor: TEAL } : undefined }, "Every Day"),
@@ -1311,14 +1316,13 @@ function App() {
                 React.createElement(SectionLabel, null, "Recovery"),
                 React.createElement(Card, null,
                     React.createElement(NumField, { label: "Recovery Score", value: today.recovery, onChange: (v) => setDay("recovery", v), suffix: "%" }),
-                    React.createElement(NumField, { label: "HRV", value: today.hrv, onChange: (v) => setDay("hrv", v), suffix: "ms" }),
                     (() => {
                         if (!hrvBaseline || today.hrv === null || today.hrv === undefined || today.hrv === "")
-                            return React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-2 leading-relaxed" }, "Auto-filled when opened from your Health shortcut. Needs 7+ readings before a baseline appears.");
+                            return React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-2 leading-relaxed" }, "HRV pulls in automatically from your Health shortcut \u2014 no manual entry. Needs 7+ readings before a baseline appears.");
                         const pct = Math.round((Number(today.hrv) / hrvBaseline - 1) * 100);
                         const low = pct <= -10;
                         return React.createElement("div", { className: "text-[10px] mt-2 leading-relaxed", style: { color: low ? "#b62f2b" : "#8a7333" } },
-                            (pct >= 0 ? "+" : "") + pct + "% vs your " + Math.round(hrvBaseline) + "ms baseline" + (low ? " \u2014 notably suppressed" : ""));
+                            "HRV " + (pct >= 0 ? "+" : "") + pct + "% vs your " + Math.round(hrvBaseline) + "ms baseline" + (low ? " \u2014 notably suppressed" : ""));
                     })()),
                 React.createElement(SectionLabel, null, "Day Flags"),
                 React.createElement(Card, null,
@@ -1432,9 +1436,9 @@ function App() {
                     React.createElement("textarea", { value: data.settings.purposeText, onChange: (e) => setSetting("purposeText", e.target.value), rows: 6, className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#332d20] leading-relaxed" }),
                     React.createElement("div", { className: "text-xs text-[#8a8172] mt-1" }, "Shown when you tap Urge.")),
                 React.createElement(SectionLabel, null, "Prevention Checklist Items"),
-                React.createElement(Card, null, items.filter((i) => i.list === "prev").map((it) => React.createElement(ItemEditorRow, { key: it.id, item: it }))),
+                React.createElement(Card, null, items.filter((i) => i.list === "prev").sort(byWeightDesc).map((it) => React.createElement(ItemEditorRow, { key: it.id, item: it }))),
                 React.createElement(SectionLabel, null, "Vigour Checklist Items"),
-                React.createElement(Card, null, items.filter((i) => i.list === "prime").map((it) => React.createElement(ItemEditorRow, { key: it.id, item: it }))),
+                React.createElement(Card, null, items.filter((i) => i.list === "prime").sort(byWeightDesc).map((it) => React.createElement(ItemEditorRow, { key: it.id, item: it }))),
                 React.createElement("div", { className: "mt-3" }, !showAdd ? (React.createElement("button", { onClick: () => setShowAdd(true), className: "w-full py-3 rounded-2xl border border-dashed border-[rgba(42,36,25,0.16)] text-[#6f6757] text-sm flex items-center justify-center gap-1.5 uppercase tracking-wide" },
                     React.createElement(Plus, { size: 16 }),
                     " Add An Item")) : (React.createElement(Card, null,
@@ -1445,7 +1449,7 @@ function App() {
                         React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5 mt-3" }, "Type"),
                         React.createElement(Seg, { value: addForm.kind, allowClear: false, onChange: (v) => v && setAddForm({ ...addForm, kind: v }), options: [{ v: "risk", label: "Risk", tone: "risk" }, { v: "habit", label: "Protective", tone: "teal" }] }))),
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5 mt-3" }, "Weight"),
-                    React.createElement(Seg, { value: addForm.weight, allowClear: false, onChange: (v) => v && setAddForm({ ...addForm, weight: v }), options: [{ v: "low", label: "Low" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }] }),
+                    React.createElement(Seg, { value: addForm.weight, allowClear: false, onChange: (v) => v && setAddForm({ ...addForm, weight: v }), options: [{ v: "low", label: "Low" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }, { v: "vhigh", label: "V.High", tone: "risk" }] }),
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5 mt-3" }, "Days"),
                     React.createElement("div", { className: "flex gap-1 mb-1.5" },
                         React.createElement("button", { onClick: () => setAddForm({ ...addForm, daily: true }), className: "px-3 py-1.5 rounded-lg text-xs uppercase border " + (addForm.daily ? "font-bold text-neutral-950" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: addForm.daily ? { background: TEAL, borderColor: TEAL } : undefined }, "Every Day"),
@@ -1490,17 +1494,6 @@ function App() {
                             React.createElement("div", { className: "flex gap-1 mt-2" }, VO2_LABELS.map((L, i) => React.createElement("div", { key: L, className: "flex-1 h-1.5 rounded-full", style: { background: i <= c.idx ? "var(--accent, #c9962c)" : "rgba(42,36,25,0.10)" } }))),
                             React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-2 leading-relaxed" }, "Band edges: " + c.cuts.join(" \u00B7 ") + " ml/kg/min. Approximated from the published Cooper Institute / ACSM categories \u2014 indicative, not clinical."));
                     })()),
-                React.createElement(SectionLabel, null, "Daily Reminders"),
-                React.createElement(Card, null,
-                    React.createElement("div", { className: "text-xs text-[#8a8172] mb-3 leading-relaxed" }, "Bull is a static app with no server, so it can't push notifications on its own. This exports two daily recurring reminders as a calendar file \u2014 import it once into iOS Calendar or Reminders for real notifications."),
-                    React.createElement("div", { className: "flex gap-2 mb-3" },
-                        React.createElement("div", { className: "flex-1" },
-                            React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1" }, "Morning"),
-                            React.createElement("input", { type: "time", value: data.settings.morningReminderTime || "08:00", onChange: (e) => setSetting("morningReminderTime", e.target.value), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" })),
-                        React.createElement("div", { className: "flex-1" },
-                            React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1" }, "Evening"),
-                            React.createElement("input", { type: "time", value: data.settings.eveningReminderTime || "21:30", onChange: (e) => setSetting("eveningReminderTime", e.target.value), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" }))),
-                    React.createElement("button", { onClick: () => downloadReminderIcs(data.settings), className: "w-full py-2.5 rounded-xl text-neutral-950 text-xs font-bold uppercase tracking-wide", style: { background: TEAL } }, "Download Reminders (.ics)")),
                 React.createElement(SectionLabel, null, "Accountability Frequency"),
                 React.createElement(Card, null,
                     React.createElement(Seg, { value: data.settings.therapistEveryWeeks, allowClear: false, onChange: (v) => v && setSetting("therapistEveryWeeks", v), options: [{ v: 1, label: "Weekly" }, { v: 2, label: "2 Wks" }, { v: 3, label: "3 Wks" }, { v: 4, label: "4 Wks" }] })),
