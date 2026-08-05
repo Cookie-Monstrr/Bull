@@ -128,10 +128,39 @@ function downloadReminderIcs(settings) {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
+/* ---------- Apple Health receiver (Shortcuts opens Bull with query params) ---------- */
+function readHealthParams() {
+    try {
+        const q = new URLSearchParams(window.location.search);
+        const out = {};
+        [["hrv", "hrv"], ["recovery", "recovery"], ["sleep", "sleep"], ["strain", "strain"]].forEach(([k, field]) => {
+            const raw = q.get(k);
+            if (raw !== null && raw !== "" && !isNaN(Number(raw)))
+                out[field] = Number(raw);
+        });
+        const date = q.get("date");
+        return Object.keys(out).length ? { values: out, dateKey: date || null } : null;
+    } catch (e) { return null; }
+}
+/* ---------- gamified vigour tiers ---------- */
+const VIGOUR_TIERS = [
+    { min: 0, name: "Calf", note: "Just starting to build" },
+    { min: 40, name: "Bull", note: "Consistent and holding" },
+    { min: 65, name: "Alpha", note: "Strong and compounding" },
+    { min: 85, name: "Titan", note: "Peak form" },
+];
+function tierFor(pct) {
+    let t = VIGOUR_TIERS[0];
+    VIGOUR_TIERS.forEach((x) => { if (pct >= x.min) t = x; });
+    return t;
+}
+function nextTier(pct) {
+    return VIGOUR_TIERS.find((x) => x.min > pct) || null;
+}
 /* ---------- colours ---------- */
-const TEAL = "#e0b040"; /* gold — primary accent */
-const AMBER = "#e0b040"; /* gold — vigour */
-const ROSE = "#dc2626"; /* crimson — danger */
+const TEAL = "#c9962c"; /* gold — primary accent */
+const AMBER = "#c9962c"; /* gold — vigour */
+const ROSE = "#b62f2b"; /* crimson — danger */
 /* ---------- ambient color utilities ---------- */
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
 function lerpN(a, b, t) { return a + (b - a) * t; }
@@ -140,7 +169,7 @@ function mixHex(h1, h2, t) {
     const to2 = (n) => Math.round(n).toString(16).padStart(2, "0");
     return "#" + to2(lerpN(a[0], b[0], t)) + to2(lerpN(a[1], b[1], t)) + to2(lerpN(a[2], b[2], t));
 }
-const CAUTION = "#b45309";
+const CAUTION = "#c2701e";
 /* ---------- weights ---------- */
 const W_RISK = { high: 20, med: 10, low: 5 };
 const W_PROT = { high: 8, med: 5, low: 2 };
@@ -176,13 +205,14 @@ const DEFAULT_SETTINGS = {
     nextCheckin: null,
     manualLastRelapseDate: null,
     fastLunarOnly: false,
+    sleepWeight: 2,
     morningReminderTime: "08:00",
     eveningReminderTime: "21:30",
 };
 const emptyDay = () => ({
     checks: {}, access: null, checkout: null,
     intentionText: "", intentionSet: false, purposeRating: null,
-    recovery: null, sleep: null,
+    recovery: null, sleep: null, hrv: null, strain: null,
     supplementsTaken: {},
     sick: false, travelling: false,
 });
@@ -240,7 +270,7 @@ function migrate(old) {
         const { lastTherapistCheckin, ...rest } = base.settings;
         base.settings = { ...rest, nextCheckin: base.settings.nextCheckin ?? null };
     }
-    base.settings = { manualLastRelapseDate: null, fastLunarOnly: false, morningReminderTime: "08:00", eveningReminderTime: "21:30", ...base.settings };
+    base.settings = { manualLastRelapseDate: null, fastLunarOnly: false, sleepWeight: 2, morningReminderTime: "08:00", eveningReminderTime: "21:30", ...base.settings };
     base.wetDreams = base.wetDreams || [];
     base.items = (base.items || []).filter((i) => i.id !== "latescreen");
     const NEW_BUILTIN_IDS = ["contentAccess", "checkout", "recoveryLow", "purposeLow", "purposeHigh", "accountabilityGap", "urgeSurvivalBonus"];
@@ -332,12 +362,18 @@ function vigourForDay(day, date, items, settings) {
         const taken = sups.filter((s) => d.supplementsTaken && d.supplementsTaken[s]).length;
         done += 2 * (taken / sups.length);
     }
+    /* sleep score contributes proportionally once logged */
+    const sw = settings.sleepWeight === undefined ? 2 : settings.sleepWeight;
+    if (sw > 0 && d.sleep !== null && d.sleep !== undefined && d.sleep !== "") {
+        total += sw;
+        done += sw * Math.max(0, Math.min(1, Number(d.sleep) / 100));
+    }
     return { done, total };
 }
 function riskColor(r) { return r <= 25 ? TEAL : r <= 55 ? CAUTION : ROSE; }
 /* ---------- UI atoms ---------- */
 function Card({ children, className = "" }) {
-    return React.createElement("div", { className: "rounded-2xl p-4 " + className, style: { background: "rgba(255,255,255,0.022)" } }, children);
+    return React.createElement("div", { className: "rounded-2xl p-4 " + className, style: { background: "rgba(42,36,25,0.035)" } }, children);
 }
 function Rows({ children, className = "" }) {
     return React.createElement("div", { className: className }, children);
@@ -368,27 +404,51 @@ function Seg({ value, options, onChange, allowClear = true }) {
         return (React.createElement("button", { key: String(o.v), style: style, onClick: () => onChange(active && allowClear ? null : o.v), className: "flex-1 py-2 px-3 rounded-full text-[11px] uppercase tracking-[0.12em] transition-all" }, o.label));
     })));
 }
-function YesNo({ label, sub, value, onChange, mode = "risk" }) {
-    const yesTone = mode === "risk" ? "risk" : mode === "vigour" ? "amber" : "teal";
-    const noTone = mode === "risk" ? "teal" : "neutral";
-    return (React.createElement("div", { className: "flex items-center justify-between py-4 last:border-0 gap-3", style: { borderBottom: "1px solid rgba(255,255,255,0.045)" } },
-        React.createElement("div", { className: "pr-1" },
-            React.createElement("div", { className: "text-[13.5px] text-neutral-300 tracking-[0.02em]" }, label),
-            sub && React.createElement("div", { className: "text-[11px] text-neutral-600 mt-1 normal-case tracking-normal" }, sub)),
-        React.createElement("div", { className: "w-[124px] shrink-0" },
-            React.createElement(Seg, { value: value === undefined ? null : value, onChange: onChange, options: [{ v: true, label: "Yes", tone: yesTone }, { v: false, label: "No", tone: noTone }] }))));
+function Tile({ label, sub, value, onChange, mode = "risk" }) {
+    /* mode "risk": tri-state null -> true(happened) -> false(avoided) -> null
+       other modes: binary not-done / done */
+    const isRisk = mode === "risk";
+    const v = value === undefined ? null : value;
+    const next = () => onChange(isRisk ? (v === null ? true : v === true ? false : null) : (v === true ? null : true));
+    let style, stateText;
+    if (isRisk) {
+        if (v === true) {
+            style = { background: "linear-gradient(150deg,#d24a44,#b62f2b)", borderColor: "#b62f2b", color: "#fff5f4", fontWeight: 700, boxShadow: "0 4px 14px rgba(182,47,43,0.28)" };
+            stateText = "Happened";
+        } else if (v === false) {
+            style = { background: "rgba(201,150,44,0.10)", borderColor: "rgba(201,150,44,0.38)", color: "#8a7333" };
+            stateText = "Avoided";
+        } else {
+            style = { background: "rgba(200,50,47,0.045)", borderColor: "rgba(200,50,47,0.14)", color: "#8a6360" };
+            stateText = "Not logged";
+        }
+    } else {
+        if (v === true) {
+            style = { background: "linear-gradient(150deg,#e6b53f,#c9962c)", borderColor: "#c9962c", color: "#2a2005", fontWeight: 700, boxShadow: "0 4px calc(8px + var(--vig,0.5)*18px) rgba(201,150,44,calc(0.18 + var(--vig,0.5)*0.32))" };
+            stateText = "Done";
+        } else {
+            style = { background: "rgba(42,36,25,0.035)", borderColor: "rgba(42,36,25,0.10)", color: "#6f6757" };
+            stateText = "Not done";
+        }
+    }
+    return (React.createElement("button", { onClick: next, style: { ...style, borderWidth: 1, borderStyle: "solid" }, className: "text-left rounded-2xl p-3.5 min-h-[76px] flex flex-col justify-between active:scale-[0.97] transition-all" },
+        React.createElement("span", { className: "text-[12.5px] leading-snug tracking-[0.01em]" }, label),
+        React.createElement("span", { className: "text-[9.5px] uppercase tracking-[0.16em] opacity-75 mt-2" }, stateText)));
+}
+function TileGrid({ children }) {
+    return React.createElement("div", { className: "grid grid-cols-2 gap-2.5" }, children);
 }
 function NumField({ label, value, onChange, max = 100, suffix }) {
     return (React.createElement("div", { className: "flex-1" },
-        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1" }, label),
+        React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1" }, label),
         React.createElement("div", { className: "flex items-center gap-1 rounded-xl bull-field px-3 py-2" },
             React.createElement("input", { inputMode: "numeric", value: value === null || value === undefined ? "" : value, onChange: (e) => {
                     const raw = e.target.value.replace(/[^0-9]/g, "");
                     if (raw === "")
                         return onChange(null);
                     onChange(Math.min(max, parseInt(raw, 10)));
-                }, placeholder: "\u2014", className: "w-full bg-transparent text-neutral-100 text-base outline-none placeholder-neutral-600" }),
-            suffix && React.createElement("span", { className: "text-xs text-neutral-500" }, suffix))));
+                }, placeholder: "\u2014", className: "w-full bg-transparent text-[#2a2419] text-base outline-none placeholder-neutral-600" }),
+            suffix && React.createElement("span", { className: "text-xs text-[#8a8172]" }, suffix))));
 }
 function Ring({ pct, size = 68, stroke = 6, color, label, invertFill = false }) {
     const r = (size - stroke) / 2;
@@ -400,7 +460,7 @@ function Ring({ pct, size = 68, stroke = 6, color, label, invertFill = false }) 
             React.createElement("circle", { cx: size / 2, cy: size / 2, r: r, stroke: "#262626", strokeWidth: stroke, fill: "none" }),
             React.createElement("circle", { cx: size / 2, cy: size / 2, r: r, stroke: color, strokeWidth: stroke, fill: "none", strokeDasharray: c, strokeDashoffset: off, strokeLinecap: "round", transform: `rotate(-90 ${size / 2} ${size / 2})`, style: { transition: "stroke-dashoffset 0.6s" } }),
             React.createElement("text", { x: "50%", y: "52%", dominantBaseline: "middle", textAnchor: "middle", fill: "#e5e5e5", fontSize: size / 4.2, fontFamily: "ui-monospace, monospace", fontWeight: "700" }, Math.round(pct))),
-        label && React.createElement("div", { className: "text-[10px] uppercase tracking-widest text-neutral-500 mt-1 font-semibold" }, label)));
+        label && React.createElement("div", { className: "text-[10px] uppercase tracking-widest text-[#8a8172] mt-1 font-semibold" }, label)));
 }
 /* ---------- score visuals: shield (risk) + fruit (vigour) ---------- */
 function ShieldRisk({ risk, size = 68 }) {
@@ -423,7 +483,7 @@ function ShieldRisk({ risk, size = 68 }) {
                 React.createElement("path", { d: "M36 26 L42 36 L38 44" }),
                 React.createElement("path", { d: "M64 58 L58 66 L62 76" })),
             React.createElement("path", { d: "M50 10 L84 21 C84 50, 75 76, 50 92 C25 76, 16 50, 16 21 Z", fill: "none", stroke: "#3a2f22", strokeWidth: "2" })),
-        React.createElement("div", { className: "text-[10px] uppercase tracking-widest text-neutral-500 mt-1 font-semibold" }, "Risk \u00B7 ", Math.round(risk))));
+        React.createElement("div", { className: "text-[10px] uppercase tracking-widest text-[#8a8172] mt-1 font-semibold" }, "Risk \u00B7 ", Math.round(risk))));
 }
 const FRUIT_BODY_D = "M46 24 C40 30, 38 40, 39 50 C40 60, 34 64, 33 72 C32 82, 40 89, 50 90 C60 89, 68 82, 67 72 C66 63, 61 59, 60 50 C59 40, 58 30, 54 24 C51 22, 48 22, 46 24 Z";
 function VigourFruit({ pct, size = 68 }) {
@@ -452,23 +512,23 @@ function VigourFruit({ pct, size = 68 }) {
                                 React.createElement("path", { stroke: "#8a6218", strokeWidth: "2.8", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
                                 React.createElement("path", { stroke: "#8a6218", strokeWidth: "2", d: "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38" })),
                             React.createElement("ellipse", { cx: 60, cy: 66, rx: 3.2, ry: 6.5, fill: "#f7e2ae", opacity: 0.85, transform: "rotate(18 60 66)" })))))),
-        React.createElement("div", { className: "text-[10px] uppercase tracking-widest text-neutral-500 mt-1 font-semibold" }, "Vigour \u00B7 ", Math.round(v))));
+        React.createElement("div", { className: "text-[10px] uppercase tracking-widest text-[#8a8172] mt-1 font-semibold" }, "Vigour \u00B7 ", Math.round(v))));
 }
 /* ---------- splash screen ---------- */
 const SPLASH_CSS = `
-.bull-splash{position:relative;width:100%;max-width:430px;height:100dvh;margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:#050403;font-family:'JetBrains Mono',monospace;}
-.bull-splash .glow{position:absolute;inset:-20%;background:radial-gradient(circle at 50% 42%,#2a0f06 0%,#050403 62%);opacity:0;transition:opacity 1.4s ease;}
+.bull-splash{position:relative;width:100%;max-width:430px;height:100dvh;margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:#faf6ef;font-family:'JetBrains Mono',monospace;}
+.bull-splash .glow{position:absolute;inset:-20%;background:radial-gradient(circle at 50% 42%,#f5e6c4 0%,#faf6ef 62%);opacity:0;transition:opacity 1.4s ease;}
 .bull-splash.on .glow{opacity:1;}
-.bull-splash .pulse{position:absolute;top:42%;left:50%;width:min(72vw,300px);height:min(72vw,300px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(224,176,64,0.35) 0%,rgba(224,176,64,0) 70%);opacity:0;}
+.bull-splash .pulse{position:absolute;top:42%;left:50%;width:min(72vw,300px);height:min(72vw,300px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(201,150,44,0.30) 0%,rgba(201,150,44,0) 70%);opacity:0;}
 .bull-splash.on .pulse{opacity:1;animation:bsBreathe 1.9s ease-in-out 3s infinite;}
 @keyframes bsBreathe{0%,100%{transform:translate(-50%,-50%) scale(0.92);opacity:.5;}14%{transform:translate(-50%,-50%) scale(1.05);opacity:.85;}38%{transform:translate(-50%,-50%) scale(1.1);opacity:.95;}58%{transform:translate(-50%,-50%) scale(0.95);opacity:.55;}}
 .bull-splash .mark{position:relative;width:min(66vw,260px);aspect-ratio:1;margin-top:-6vh;}
 .bull-splash.on .mark{animation:bsJolt .16s linear 2.1s 2;}
 @keyframes bsJolt{0%,100%{transform:translate(0,0);}25%{transform:translate(1.5px,-1px);}50%{transform:translate(-1.5px,1px);}75%{transform:translate(1px,1px);}}
 .bull-splash .mark svg{position:absolute;inset:0;width:100%;height:100%;display:block;}
-.bull-splash .ring-track{fill:none;stroke:#1c1712;stroke-width:3;}
+.bull-splash .ring-track{fill:none;stroke:rgba(42,36,25,0.10);stroke-width:3;}
 .bull-splash .ring-fill{fill:none;stroke:url(#bsGoldGrad);stroke-width:3;stroke-linecap:round;stroke-dasharray:301.6;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset 1.8s cubic-bezier(.65,0,.35,1) .3s;}
-.bull-splash .shockwave{position:absolute;inset:0;border-radius:50%;border:2px solid #f5cf7e;opacity:0;pointer-events:none;}
+.bull-splash .shockwave{position:absolute;inset:0;border-radius:50%;border:2px solid #c9962c;opacity:0;pointer-events:none;}
 .bull-splash.on .shockwave{animation:bsShock .55s ease-out 2.0s;}
 @keyframes bsShock{0%{opacity:0;transform:scale(.96);}18%{opacity:.55;}100%{opacity:0;transform:scale(1.12);}}
 .bull-splash .riser,.bull-splash .grow,.bull-splash .beat{position:absolute;inset:0;}
@@ -502,17 +562,17 @@ const SPLASH_CSS = `
 .bull-splash.on .vc.c1{animation-delay:3s;}
 .bull-splash.on .vc.c2{animation-delay:3.35s;}
 .bull-splash.on .vc.c3{animation-delay:3.7s;}
-.bull-splash .word{margin-top:22px;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.32em;font-size:1.7rem;font-weight:700;color:#f2e6c9;opacity:0;transform:translateY(8px);transition:opacity .8s ease 2.6s,transform .8s ease 2.6s;}
+.bull-splash .word{margin-top:22px;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.32em;font-size:1.7rem;font-weight:700;color:#2a2419;opacity:0;transform:translateY(8px);transition:opacity .8s ease 2.6s,transform .8s ease 2.6s;}
 .bull-splash.on .word{opacity:1;transform:translateY(0);}
-.bull-splash .line{font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:#7a7368;margin-top:8px;opacity:0;transition:opacity .8s ease 2.9s;}
+.bull-splash .line{font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:#8a8172;margin-top:8px;opacity:0;transition:opacity .8s ease 2.9s;}
 .bull-splash.on .line{opacity:1;}
 .bull-splash .stats{display:flex;gap:34px;margin-top:30px;opacity:0;transform:translateY(6px);transition:opacity .7s ease 3.2s,transform .7s ease 3.2s;}
 .bull-splash.on .stats{opacity:1;transform:translateY(0);}
 .bull-splash .stat{text-align:center;}
-.bull-splash .stat .num{font-family:'Oswald',sans-serif;font-weight:700;font-size:1.9rem;color:#f5cf7e;line-height:1;font-variant-numeric:tabular-nums;}
-.bull-splash .stat .lbl{font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:#7a7368;margin-top:6px;}
-.bull-splash .bsdivider{width:1px;background:#26201a;align-self:stretch;}
-.bull-splash .hype{position:absolute;bottom:15%;left:0;right:0;text-align:center;padding:0 40px;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.08em;font-size:0.98rem;font-weight:600;color:#d8c191;opacity:0;transition:opacity .9s ease 3.6s;}
+.bull-splash .stat .num{font-family:'Oswald',sans-serif;font-weight:700;font-size:1.9rem;color:#a8791f;line-height:1;font-variant-numeric:tabular-nums;}
+.bull-splash .stat .lbl{font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:#8a8172;margin-top:6px;}
+.bull-splash .bsdivider{width:1px;background:rgba(42,36,25,0.14);align-self:stretch;}
+.bull-splash .hype{position:absolute;bottom:15%;left:0;right:0;text-align:center;padding:0 40px;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.08em;font-size:0.98rem;font-weight:600;color:#5a5140;opacity:0;transition:opacity .9s ease 3.6s;}
 .bull-splash.on .hype{opacity:1;}
 @media (prefers-reduced-motion: reduce){
   .bull-splash *{animation:none !important;transition:none !important;}
@@ -553,7 +613,7 @@ function Splash({ vigour, risk, cleanPct, streak, onDone }) {
     }, []);
     const c = 2 * Math.PI * 48;
     const offset = c - (Math.max(0, Math.min(100, vigour)) / 100) * c;
-    return (React.createElement("div", { className: "fixed inset-0 z-[70] bg-black", onClick: onDone },
+    return (React.createElement("div", { className: "fixed inset-0 z-[70]", style: { background: "#faf6ef" }, onClick: onDone },
         React.createElement("style", { dangerouslySetInnerHTML: { __html: SPLASH_CSS } }),
         React.createElement("div", { className: "bull-splash" + (on ? " on" : "") },
             React.createElement("div", { className: "glow" }),
@@ -653,19 +713,19 @@ function Breathe({ purposeText, onClose }) {
     const remaining = Math.ceil(TOTAL - elapsed);
     const mm = Math.floor(remaining / 60), ss = pad(remaining % 60);
     const doneAll = elapsed >= TOTAL;
-    return (React.createElement("div", { className: "fixed inset-0 z-50 bg-black flex flex-col items-center justify-between p-6 overflow-y-auto" },
+    return (React.createElement("div", { className: "fixed inset-0 z-50 flex flex-col items-center justify-between p-6 overflow-y-auto", style: { background: "#faf6ef" } },
         React.createElement("div", { className: "w-full max-w-md pt-4" },
             React.createElement("div", { className: "text-xs uppercase tracking-widest font-bold mb-3", style: { color: TEAL } }, "Win Logged \u2014 Urge Survived"),
-            React.createElement("p", { className: "font-serif text-neutral-200 text-lg leading-relaxed whitespace-pre-line" }, purposeText)),
+            React.createElement("p", { className: "font-serif text-[#332d20] text-lg leading-relaxed whitespace-pre-line" }, purposeText)),
         !started ? (React.createElement("button", { onClick: () => setStarted(true), className: "my-10 px-8 py-4 rounded-2xl font-bold text-lg text-neutral-950", style: { background: TEAL } }, "BEGIN 3-MINUTE RESET")) : (React.createElement("div", { className: "flex flex-col items-center my-8" },
             React.createElement("div", { className: "relative w-52 h-52 flex items-center justify-center" },
-                React.createElement("div", { className: "absolute inset-0 rounded-full border border-neutral-800" }),
+                React.createElement("div", { className: "absolute inset-0 rounded-full border border-[rgba(42,36,25,0.10)]" }),
                 React.createElement("div", { className: "w-36 h-36 rounded-full opacity-20", style: { background: TEAL, transform: `scale(${scale})`, transition: `transform ${dur} ease-in-out` } }),
                 React.createElement("div", { className: "absolute w-36 h-36 rounded-full border-2", style: { borderColor: TEAL, transform: `scale(${scale})`, transition: `transform ${dur} ease-in-out` } })),
-            React.createElement("div", { className: "text-neutral-200 mt-6 text-sm uppercase tracking-wide font-semibold" }, doneAll ? "Steady — The Wave Passed" : phase),
-            React.createElement("div", { className: "font-mono text-neutral-500 mt-1 text-sm" }, doneAll ? "0:00" : `${mm}:${ss}`))),
+            React.createElement("div", { className: "text-[#332d20] mt-6 text-sm uppercase tracking-wide font-semibold" }, doneAll ? "Steady — The Wave Passed" : phase),
+            React.createElement("div", { className: "font-mono text-[#8a8172] mt-1 text-sm" }, doneAll ? "0:00" : `${mm}:${ss}`))),
         React.createElement("div", { className: "w-full max-w-md pb-4" },
-            React.createElement("button", { onClick: onClose, className: "w-full py-3.5 rounded-2xl font-bold uppercase tracking-wide " + (doneAll ? "text-neutral-950" : "bg-neutral-800 text-neutral-400"), style: doneAll ? { background: TEAL } : undefined }, doneAll ? "Return, Stronger" : started ? "I'm Steady — Return Early" : "Close"))));
+            React.createElement("button", { onClick: onClose, className: "w-full py-3.5 rounded-2xl font-bold uppercase tracking-wide " + (doneAll ? "text-neutral-950" : "bg-[rgba(42,36,25,0.06)] text-[#6f6757]"), style: doneAll ? { background: TEAL } : undefined }, doneAll ? "Return, Stronger" : started ? "I'm Steady — Return Early" : "Close"))));
 }
 /* ---------- guide ---------- */
 const GUIDE = [
@@ -699,19 +759,28 @@ function App() {
     const [showAdd, setShowAdd] = useState(false);
     const [viewOffset, setViewOffset] = useState(0);
     const [showSplash, setShowSplash] = useState(true);
+    const [healthImported, setHealthImported] = useState(null);
     const [addForm, setAddForm] = useState({ label: "", list: "prev", kind: "risk", weight: "med", daily: true, days: [] });
     const saveTimer = useRef(null);
     useEffect(() => {
         (async () => {
-            const loaded = migrate(await storageGet());
-            if (loaded)
-                setData(loaded);
-            else
-                setData({
+            let loaded = migrate(await storageGet());
+            if (!loaded)
+                loaded = {
                     version: 6, settings: { ...DEFAULT_SETTINGS },
                     items: DEFAULT_ITEMS.map((i) => ({ ...i, freq: Array.isArray(i.freq) ? [...i.freq] : i.freq })),
                     days: {}, urges: [], relapses: [], wetDreams: [], firstUse: Date.now(),
-                });
+                };
+            /* Apple Health handoff: Shortcuts opens Bull with ?hrv=..&recovery=..&sleep=.. */
+            const incoming = readHealthParams();
+            if (incoming) {
+                const k = incoming.dateKey || todayKey();
+                loaded = { ...loaded, days: { ...loaded.days, [k]: { ...emptyDay(), ...(loaded.days[k] || {}), ...incoming.values } } };
+                setHealthImported(Object.keys(incoming.values));
+                storageSet(loaded);
+                try { window.history.replaceState({}, "", window.location.pathname); } catch (e) { }
+            }
+            setData(loaded);
         })();
     }, []);
     const persist = (next) => {
@@ -721,8 +790,8 @@ function App() {
         saveTimer.current = setTimeout(() => storageSet(next), 500);
     };
     if (!data) {
-        return (React.createElement("div", { className: "min-h-screen bg-black flex items-center justify-center" },
-            React.createElement("div", { className: "text-neutral-500 text-sm uppercase tracking-widest" }, "Loading")));
+        return (React.createElement("div", { className: "min-h-screen flex items-center justify-center", style: { background: "#faf6ef" } },
+            React.createElement("div", { className: "text-[#8a8172] text-sm uppercase tracking-widest" }, "Loading")));
     }
     const items = data.items || [];
     const tk = todayKey();
@@ -781,16 +850,17 @@ function App() {
         const dgr = Math.pow(Math.max(0, Math.min(1, 1 - protAvg)), 1.35);
         return {
             vt, dgr, tense: protAvg <= 0.33,
-            accent: mixHex("#8a7a55", "#e0b040", Math.min(1, vt * 1.25)),
+            accent: mixHex("#a9946a", "#c9962c", Math.min(1, vt * 1.25)),
             vars: {
                 "--vig": vt.toFixed(3),
-                "--accent": mixHex("#8a7a55", "#e0b040", Math.min(1, vt * 1.25)),
+                "--accent": mixHex("#a9946a", "#c9962c", Math.min(1, vt * 1.25)),
                 "--energyOp": (0.12 + 0.5 * vt).toFixed(3),
-                "--energyCol": `rgba(224,176,64,${(0.14 + 0.2 * vt).toFixed(3)})`,
+                "--energyCol": `rgba(214,164,52,${(0.12 + 0.22 * vt).toFixed(3)})`,
                 "--breatheA": (0.015 + 0.06 * vt).toFixed(3),
-                "--dgrOp": (dgr * 0.5).toFixed(3),
+                "--dgrOp": (dgr * 0.30).toFixed(3),
                 "--dgrLine": (dgr * 0.9).toFixed(3),
-                "--bg": mixHex(mixHex("#050403", "#17110a", vt), "#120406", dgr * 0.8),
+                "--bg": mixHex(mixHex("#faf6ef", "#f7eed6", vt), "#f4e3e0", dgr * 0.75),
+                "--ink": mixHex("#2a2419", "#3a1e1c", dgr * 0.6),
             },
         };
     })();
@@ -868,17 +938,23 @@ function App() {
         { label: "Heavy Visual Triggers", test: (d) => d.checkout === "lot" },
         { label: "Recovery Below 40%", test: (d) => d.recovery !== null && d.recovery !== undefined && d.recovery !== "" && Number(d.recovery) < 40 },
         { label: "Low-Purpose Day (1–2)", test: (d) => d.purposeRating !== null && d.purposeRating !== undefined && d.purposeRating <= 2 },
+        { label: "HRV 10%+ Below Baseline", test: (d, ctx) => d.hrv !== null && d.hrv !== undefined && d.hrv !== "" && ctx && ctx.hrvBaseline && Number(d.hrv) < ctx.hrvBaseline * 0.9 },
         { label: "Flagged Sick", test: (d) => d.sick === true },
         { label: "Flagged Travelling", test: (d) => d.travelling === true },
     ];
+    const hrvBaseline = (() => {
+        const vals = Object.keys(data.days).map((k) => data.days[k] && data.days[k].hrv).filter((x) => x !== null && x !== undefined && x !== "" && !isNaN(Number(x))).map(Number);
+        return vals.length >= 7 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    })();
+    const corrCtx = { hrvBaseline };
     const correlationsFor = (eventTimestamps) => {
         const eventKeys = [...new Set(eventTimestamps.map((ts) => dateKey(new Date(ts))))].filter((k) => data.days[k]);
         const allKeys = Object.keys(data.days).filter((k) => riskLogged(data.days[k], items));
         if (!eventKeys.length || !allKeys.length)
             return null;
         return CORRELATION_FACTORS.map((f) => {
-            const rel = eventKeys.filter((k) => f.test({ ...emptyDay(), ...data.days[k] })).length / eventKeys.length;
-            const base = allKeys.filter((k) => f.test({ ...emptyDay(), ...data.days[k] })).length / allKeys.length;
+            const rel = eventKeys.filter((k) => f.test({ ...emptyDay(), ...data.days[k] }, corrCtx)).length / eventKeys.length;
+            const base = allKeys.filter((k) => f.test({ ...emptyDay(), ...data.days[k] }, corrCtx)).length / allKeys.length;
             return { label: f.label, rel: Math.round(rel * 100), base: Math.round(base * 100) };
         }).filter((x) => x.rel > 0).sort((a, b) => (b.rel - b.base) - (a.rel - a.base)).slice(0, 5);
     };
@@ -918,51 +994,51 @@ function App() {
     const freqSummary = (item) => item.fastingAuto ? (data.settings.fastLunarOnly ? "AUTO (LUNAR ONLY)" : "AUTO (MON/THU/LUNAR)") :
         item.freq === "daily" ? "DAILY" :
             Array.isArray(item.freq) && item.freq.length ? item.freq.map((d) => WD[d]).join(" ") : "DAILY";
-    const NavBtn = ({ id, icon: Icon, label }) => (React.createElement("button", { onClick: () => setView(id), className: "flex-1 flex flex-col items-center gap-0.5 py-2 " + (view === id ? "" : "text-neutral-500"), style: view === id ? { color: TEAL } : undefined },
+    const NavBtn = ({ id, icon: Icon, label }) => (React.createElement("button", { onClick: () => setView(id), className: "flex-1 flex flex-col items-center gap-0.5 py-2 " + (view === id ? "" : "text-[#8a8172]"), style: view === id ? { color: TEAL } : undefined },
         React.createElement(Icon, { size: 20 }),
         React.createElement("span", { className: "text-[10px] uppercase tracking-wide font-semibold" }, label)));
     const ItemEditorRow = ({ item }) => {
         const kindLabel = item.kind === "risk" ? "RISK" : item.kind === "habit" ? "PROTECTIVE"
             : item.kind === "tier" ? "TIERED" : "AUTO";
         const editable = item.kind === "risk" || item.kind === "habit";
-        return (React.createElement("div", { className: "py-2.5 border-b border-neutral-800 last:border-0" },
+        return (React.createElement("div", { className: "py-2.5 border-b border-[rgba(42,36,25,0.10)] last:border-0" },
             React.createElement("button", { onClick: () => setExpandedItem(expandedItem === item.id ? null : item.id), className: "w-full flex items-center justify-between text-left" },
                 React.createElement("div", { className: "pr-2" },
-                    React.createElement("div", { className: "text-sm text-neutral-200 uppercase tracking-wide font-semibold" }, item.label),
-                    React.createElement("div", { className: "text-xs text-neutral-500 mt-0.5" }, kindLabel + " · " + item.weight.toUpperCase() + (editable ? " · " + freqSummary(item) : "")),
-                    item.sub && item.list !== "prime" && React.createElement("div", { className: "text-xs text-neutral-600 mt-0.5 normal-case" }, item.sub)),
-                React.createElement(Pencil, { size: 14, className: "text-neutral-600 shrink-0" })),
+                    React.createElement("div", { className: "text-sm text-[#332d20] uppercase tracking-wide font-semibold" }, item.label),
+                    React.createElement("div", { className: "text-xs text-[#8a8172] mt-0.5" }, kindLabel + " · " + item.weight.toUpperCase() + (editable ? " · " + freqSummary(item) : "")),
+                    item.sub && item.list !== "prime" && React.createElement("div", { className: "text-xs text-[#9a9285] mt-0.5 normal-case" }, item.sub)),
+                React.createElement(Pencil, { size: 14, className: "text-[#9a9285] shrink-0" })),
             expandedItem === item.id && (React.createElement("div", { className: "mt-3 space-y-3" },
                 item.list === "prev" && editable && (React.createElement("div", null,
-                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "Type"),
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Type"),
                     React.createElement(Seg, { value: item.kind, allowClear: false, onChange: (v) => v && updateItem(item.id, { kind: v }), options: [{ v: "risk", label: "Risk", tone: "risk" }, { v: "habit", label: "Protective", tone: "teal" }] }))),
                 React.createElement("div", null,
-                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "Weight"),
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Weight"),
                     React.createElement(Seg, { value: item.weight, allowClear: false, onChange: (v) => v && updateItem(item.id, { weight: v }), options: [{ v: "low", label: "Low" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }] })),
                 editable && !item.fastingAuto && (React.createElement("div", null,
-                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "Days"),
-                    React.createElement("button", { onClick: () => updateItem(item.id, { freq: "daily" }), className: "px-3 py-1.5 rounded-lg text-xs uppercase border mb-1.5 " + (item.freq === "daily" ? "font-bold text-neutral-950" : "border-neutral-700 text-neutral-400"), style: item.freq === "daily" ? { background: TEAL, borderColor: TEAL } : undefined }, "Every Day"),
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Days"),
+                    React.createElement("button", { onClick: () => updateItem(item.id, { freq: "daily" }), className: "px-3 py-1.5 rounded-lg text-xs uppercase border mb-1.5 " + (item.freq === "daily" ? "font-bold text-neutral-950" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: item.freq === "daily" ? { background: TEAL, borderColor: TEAL } : undefined }, "Every Day"),
                     React.createElement("div", { className: "flex gap-1" }, WD.map((w, i) => {
                         const on = Array.isArray(item.freq) && item.freq.includes(i);
-                        return (React.createElement("button", { key: w, onClick: () => toggleItemDay(Array.isArray(item.freq) ? item : { ...item, freq: [] }, i), className: "flex-1 py-1.5 rounded-lg text-xs border " + (on ? "bg-neutral-200 border-neutral-200 text-neutral-950 font-bold" : "border-neutral-700 text-neutral-500") }, w));
+                        return (React.createElement("button", { key: w, onClick: () => toggleItemDay(Array.isArray(item.freq) ? item : { ...item, freq: [] }, i), className: "flex-1 py-1.5 rounded-lg text-xs border " + (on ? "bg-[#2a2419] border-[#2a2419] text-white font-bold" : "border-[rgba(42,36,25,0.16)] text-[#8a8172]") }, w));
                     })))),
                 item.fastingAuto && (React.createElement("div", null,
-                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "Fasting Days"),
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Fasting Days"),
                     React.createElement(Seg, { value: data.settings.fastLunarOnly ? "lunar" : "both", allowClear: false, onChange: (v) => v && setSetting("fastLunarOnly", v === "lunar"), options: [{ v: "both", label: "Mon/Thu + Lunar" }, { v: "lunar", label: "Lunar Only" }] }))),
                 editable && (React.createElement("button", { onClick: () => { deleteItem(item.id); setExpandedItem(null); }, className: "text-xs text-rose-400 flex items-center gap-1 uppercase tracking-wide" },
                     React.createElement(Trash2, { size: 13 }),
                     " Remove Item"))))));
     };
-    return (React.createElement("div", { className: "min-h-screen text-neutral-200 pb-24", style: { WebkitTapHighlightColor: "transparent", background: "var(--bg, #050403)", transition: "background 0.8s", ...ambient.vars } },
+    return (React.createElement("div", { className: "min-h-screen pb-24", style: { WebkitTapHighlightColor: "transparent", background: "var(--bg, #faf6ef)", color: "var(--ink, #2a2419)", transition: "background 0.8s, color 0.8s", ...ambient.vars } },
         React.createElement("style", { dangerouslySetInnerHTML: { __html: "@keyframes bullFruitThrob{0%,100%{transform:scale(1,1);}14%{transform:scale(1.07,1.04);}26%{transform:scale(1.0,.995);}38%{transform:scale(1.1,1.05);}58%{transform:scale(1,1);}}.bull-fruit-throb{animation:bullFruitThrob 1.9s ease-in-out infinite;}"
-                    + ".bull-energy{position:fixed;top:-16%;left:50%;width:150%;aspect-ratio:1.2;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 30%, var(--energyCol, rgba(224,176,64,.2)) 0%, transparent 62%);opacity:var(--energyOp,.3);pointer-events:none;z-index:0;animation:bullEnergyBreathe 5s ease-in-out infinite;transition:opacity .8s;}"
+                    + ".bull-energy{position:fixed;top:-16%;left:50%;width:150%;aspect-ratio:1.2;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 30%, var(--energyCol, rgba(214,164,52,.18)) 0%, transparent 62%);opacity:var(--energyOp,.3);pointer-events:none;z-index:0;animation:bullEnergyBreathe 5s ease-in-out infinite;transition:opacity .8s;}"
                     + "@keyframes bullEnergyBreathe{0%,100%{transform:translateX(-50%) scale(1);}50%{transform:translateX(-50%) scale(calc(1 + var(--breatheA,0.03)));}}"
-                    + ".bull-danger{position:fixed;inset:0;pointer-events:none;z-index:40;background:radial-gradient(ellipse 120% 100% at 50% 45%, transparent 55%, rgba(150,10,20,var(--dgrOp,0)) 100%);transition:background .8s;}"
+                    + ".bull-danger{position:fixed;inset:0;pointer-events:none;z-index:40;background:radial-gradient(ellipse 120% 100% at 50% 45%, transparent 55%, rgba(190,45,40,var(--dgrOp,0)) 100%);transition:background .8s;}"
                     + ".bull-danger.tense{animation:bullTension 2.4s ease-in-out infinite;}"
                     + "@keyframes bullTension{0%,100%{opacity:1;}50%{opacity:.82;}}"
                     + ".bull-forceline{height:2px;border-radius:2px;margin:16px 0 4px;background:linear-gradient(90deg, var(--accent,#e0b040) 0%, transparent 45%, transparent 55%, rgba(220,38,38,var(--dgrLine,0)) 100%);opacity:.9;transition:background .8s;}"
-                    + ".bull-field{background:rgba(255,255,255,0.055);}"
-                    + ".bull-nav{background:rgba(6,5,4,0.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid rgba(255,255,255,0.05);}"
+                    + ".bull-field{background:rgba(42,36,25,0.05);}"
+                    + ".bull-nav{background:rgba(250,246,239,0.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid rgba(42,36,25,0.10);}"
                     + "@media (prefers-reduced-motion: reduce){.bull-energy,.bull-danger.tense,.bull-fruit-throb{animation:none !important;}}" } }),
         React.createElement("div", { className: "bull-energy" }),
         React.createElement("div", { className: "bull-danger" + (ambient.tense ? " tense" : "") }),
@@ -976,11 +1052,11 @@ function App() {
                 React.createElement("div", { className: "flex items-start justify-between" },
                     React.createElement("div", null,
                         React.createElement("div", { className: "flex items-center gap-1.5" },
-                            React.createElement("button", { onClick: () => setViewOffset(viewOffset - 1), className: "text-neutral-600 px-1 -ml-1 text-lg leading-none active:text-neutral-400" }, "\u2039"),
-                            React.createElement("div", { className: "font-serif text-2xl text-neutral-100" }, isToday ? now.toLocaleDateString(undefined, { weekday: "long" }) : now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })),
-                            React.createElement("button", { onClick: () => viewOffset < 0 && setViewOffset(viewOffset + 1), disabled: viewOffset >= 0, className: "text-lg leading-none px-1 " + (viewOffset >= 0 ? "text-neutral-800" : "text-neutral-600 active:text-neutral-400") }, "\u203A")),
+                            React.createElement("button", { onClick: () => setViewOffset(viewOffset - 1), className: "text-[#9a9285] px-1 -ml-1 text-lg leading-none active:text-[#6f6757]" }, "\u2039"),
+                            React.createElement("div", { className: "font-serif text-2xl text-[#2a2419]" }, isToday ? now.toLocaleDateString(undefined, { weekday: "long" }) : now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })),
+                            React.createElement("button", { onClick: () => viewOffset < 0 && setViewOffset(viewOffset + 1), disabled: viewOffset >= 0, className: "text-lg leading-none px-1 " + (viewOffset >= 0 ? "text-neutral-800" : "text-[#9a9285] active:text-[#6f6757]") }, "\u203A")),
                         !isToday && React.createElement("button", { onClick: () => setViewOffset(0), className: "text-[10px] uppercase tracking-widest font-bold mt-0.5", style: { color: AMBER } }, "\u270E Editing Past Day \u2014 Jump To Today"),
-                        isToday && React.createElement("div", { className: "text-sm text-neutral-500" },
+                        isToday && React.createElement("div", { className: "text-sm text-[#8a8172]" },
                             now.toLocaleDateString(undefined, { day: "numeric", month: "long" }),
                             fastToday && React.createElement("span", { style: { color: AMBER } }, " \u00B7 FASTING DAY")),
                         React.createElement("div", { className: "flex items-center gap-1.5 mt-2", style: { color: AMBER } },
@@ -994,23 +1070,33 @@ function App() {
                         React.createElement(ShieldRisk, { risk: risk, size: 68 }),
                         React.createElement(VigourFruit, { pct: vigourPct, size: 68 }))),
                 React.createElement("div", { className: "bull-forceline" }),
+                healthImported && isToday && (React.createElement("div", { className: "mt-3 rounded-xl px-3 py-2 text-[11px] tracking-wide", style: { background: "rgba(201,150,44,0.12)", color: "#8a7333" } },
+                    "Imported from Health: " + healthImported.join(", "))),
+                (() => {
+                    const t = tierFor(vigourPct), nx = nextTier(vigourPct);
+                    return React.createElement("div", { className: "flex items-baseline justify-between mt-3" },
+                        React.createElement("div", { className: "flex items-baseline gap-2" },
+                            React.createElement("span", { className: "font-serif text-lg", style: { color: "var(--accent, #c9962c)" } }, t.name),
+                            React.createElement("span", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285]" }, t.note)),
+                        nx && React.createElement("span", { className: "text-[10px] uppercase tracking-[0.14em] text-[#9a9285]" }, Math.max(0, Math.ceil(nx.min - vigourPct)) + "% to " + nx.name));
+                })(),
                 isToday ? (React.createElement(React.Fragment, null,
                     React.createElement("button", { onClick: logUrge, className: "w-full mt-5 py-4 rounded-2xl font-bold text-lg text-black flex items-center justify-center gap-2 active:scale-95 transition-transform uppercase tracking-widest", style: { background: "var(--accent, #e0b040)", boxShadow: "0 6px calc(12px + var(--vig, 0.5)*20px) rgba(224,176,64,calc(0.1 + var(--vig, 0.5)*0.28))" } },
                         React.createElement(Wind, { size: 22 }),
                         " Urge \u2014 Tap To Ride It Out"),
-                    React.createElement("div", { className: "text-center text-xs text-neutral-500 mt-1.5 uppercase tracking-wide" },
+                    React.createElement("div", { className: "text-center text-xs text-[#8a8172] mt-1.5 uppercase tracking-wide" },
                         data.urges.length,
                         " urge",
                         data.urges.length === 1 ? "" : "s",
-                        " survived all-time"))) : (React.createElement("div", { className: "text-center text-xs text-neutral-600 mt-5 uppercase tracking-wide py-4 border border-dashed border-neutral-800 rounded-2xl" }, "Urge logging only available on today")),
-                justRelapsed && (React.createElement(Card, { className: "mt-4 border border-neutral-700" },
-                    React.createElement("div", { className: "text-sm text-neutral-300 leading-relaxed" }, "Logged. One slip is one data point \u2014 not a collapse. Water, shower, outside. Fast tomorrow."),
-                    React.createElement("button", { onClick: () => setJustRelapsed(false), className: "mt-2 text-xs text-neutral-500 uppercase tracking-wide" }, "Dismiss"))),
+                        " survived all-time"))) : (React.createElement("div", { className: "text-center text-xs text-[#9a9285] mt-5 uppercase tracking-wide py-4 border border-dashed border-[rgba(42,36,25,0.10)] rounded-2xl" }, "Urge logging only available on today")),
+                justRelapsed && (React.createElement(Card, { className: "mt-4 border border-[rgba(42,36,25,0.16)]" },
+                    React.createElement("div", { className: "text-sm text-[#4a4335] leading-relaxed" }, "Logged. One slip is one data point \u2014 not a collapse. Water, shower, outside. Fast tomorrow."),
+                    React.createElement("button", { onClick: () => setJustRelapsed(false), className: "mt-2 text-xs text-[#8a8172] uppercase tracking-wide" }, "Dismiss"))),
                 React.createElement(GroupHeader, { icon: Shield, color: TEAL }, "Relapse Prevention"),
                 React.createElement(SectionLabel, null, "Morning Intention"),
                 React.createElement(Card, null, today.intentionSet ? (React.createElement("div", { className: "flex items-start gap-2" },
                     React.createElement(Check, { size: 18, style: { color: TEAL }, className: "mt-0.5 shrink-0" }),
-                    React.createElement("div", { className: "text-sm text-neutral-300" }, today.intentionText || "Intention set."))) : (React.createElement("div", { className: "flex gap-2" },
+                    React.createElement("div", { className: "text-sm text-[#4a4335]" }, today.intentionText || "Intention set."))) : (React.createElement("div", { className: "flex gap-2" },
                     React.createElement("input", { value: today.intentionText, onChange: (e) => setDay("intentionText", e.target.value), placeholder: "One purposeful thing today\u2026", className: "flex-1 rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
                     React.createElement("button", { onClick: () => setDay("intentionSet", true), className: "px-4 rounded-xl text-neutral-950 text-sm font-bold uppercase", style: { background: TEAL } }, "Set")))),
                 React.createElement(SectionLabel, null, "Accountability"),
@@ -1023,156 +1109,158 @@ function App() {
                         React.createElement("input", { type: "datetime-local", value: data.settings.nextCheckin ? new Date(data.settings.nextCheckin - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "", onChange: (e) => {
                                 const v = e.target.value;
                                 setSetting("nextCheckin", v ? new Date(v).getTime() : null);
-                            }, className: "flex-1 rounded-xl bull-field px-3 py-2 text-sm outline-none text-neutral-100" }),
-                        data.settings.nextCheckin && (React.createElement("button", { onClick: () => setSetting("nextCheckin", null), className: "px-3 rounded-xl bg-neutral-800 text-neutral-400 text-xs uppercase tracking-wide" }, "Clear")))),
+                            }, className: "flex-1 rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" }),
+                        data.settings.nextCheckin && (React.createElement("button", { onClick: () => setSetting("nextCheckin", null), className: "px-3 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-xs uppercase tracking-wide" }, "Clear")))),
                 React.createElement(SectionLabel, null, "Risk Factors Today"),
+                React.createElement(TileGrid, null, prevRisks.map((it) => (React.createElement(Tile, { key: it.id, mode: "risk", label: it.label, value: today.checks[it.id] === undefined ? null : today.checks[it.id], onChange: (v) => setCheck(it.id, v) })))),
                 React.createElement(Rows, null,
-                    prevRisks.map((it) => (React.createElement(YesNo, { key: it.id, mode: "risk", label: it.label, value: today.checks[it.id] === undefined ? null : today.checks[it.id], onChange: (v) => setCheck(it.id, v) }))),
-                    React.createElement("div", { className: "py-4", style: { borderBottom: "1px solid rgba(255,255,255,0.045)" } },
-                        React.createElement("div", { className: "text-[13.5px] text-neutral-300 tracking-[0.02em] mb-2.5" }, "Content Access Today"),
+                    React.createElement("div", { className: "pt-5 pb-4" },
+                        React.createElement("div", { className: "text-[13.5px] text-[#4a4335] tracking-[0.02em] mb-2.5" }, "Content Access Today"),
                         React.createElement(Seg, { value: today.access, onChange: (v) => setDay("access", v), options: [{ v: "low", label: "Low", tone: "teal" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }] })),
                     React.createElement("div", { className: "py-4" },
-                        React.createElement("div", { className: "text-[13.5px] text-neutral-300 tracking-[0.02em] mb-2.5" }, "Checking Out Women"),
+                        React.createElement("div", { className: "text-[13.5px] text-[#4a4335] tracking-[0.02em] mb-2.5" }, "Checking Out Women"),
                         React.createElement(Seg, { value: today.checkout, onChange: (v) => setDay("checkout", v), options: [{ v: "none", label: "None", tone: "teal" }, { v: "few", label: "A Few", tone: "warn" }, { v: "lot", label: "A Lot", tone: "risk" }] }))),
                 prevHabits.length > 0 && (React.createElement(React.Fragment, null,
                     React.createElement(SectionLabel, null, "Protective Habits"),
-                    React.createElement(Rows, null, prevHabits.map((it) => (React.createElement(YesNo, { key: it.id, mode: "protective", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))))),
+                    React.createElement(TileGrid, null, prevHabits.map((it) => (React.createElement(Tile, { key: it.id, mode: "protective", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))))),
                 React.createElement(SectionLabel, null, "Recovery"),
                 React.createElement(Card, null,
-                    React.createElement(NumField, { label: "Recovery Score", value: today.recovery, onChange: (v) => setDay("recovery", v), suffix: "%" })),
+                    React.createElement(NumField, { label: "Recovery Score", value: today.recovery, onChange: (v) => setDay("recovery", v), suffix: "%" }),
+                    React.createElement(NumField, { label: "HRV", value: today.hrv, onChange: (v) => setDay("hrv", v), suffix: "ms" }),
+                    React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-2 leading-relaxed" }, "Auto-filled when opened from your Health shortcut.")),
                 React.createElement(SectionLabel, null, "Day Flags"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex gap-2" },
-                        React.createElement("button", { onClick: () => setDay("sick", !today.sick), className: "flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.sick ? "text-neutral-950 font-bold" : "border-neutral-700 text-neutral-400"), style: today.sick ? { background: CAUTION, borderColor: CAUTION } : undefined }, "Sick"),
-                        React.createElement("button", { onClick: () => setDay("travelling", !today.travelling), className: "flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.travelling ? "text-neutral-950 font-bold" : "border-neutral-700 text-neutral-400"), style: today.travelling ? { background: CAUTION, borderColor: CAUTION } : undefined }, "Travelling")),
-                    React.createElement("div", { className: "text-[10px] text-neutral-600 mt-2 leading-relaxed" }, "Flagged days are left out of your period averages, but Patterns still tests them for correlation with relapses and wet dreams. Today's live score isn't affected.")),
+                        React.createElement("button", { onClick: () => setDay("sick", !today.sick), className: "flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.sick ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: today.sick ? { background: CAUTION, borderColor: CAUTION } : undefined }, "Sick"),
+                        React.createElement("button", { onClick: () => setDay("travelling", !today.travelling), className: "flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.travelling ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: today.travelling ? { background: CAUTION, borderColor: CAUTION } : undefined }, "Travelling")),
+                    React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-2 leading-relaxed" }, "Flagged days are left out of your period averages, but Patterns still tests them for correlation with relapses and wet dreams. Today's live score isn't affected.")),
                 React.createElement(SectionLabel, null, "Evening Review"),
                 React.createElement(Card, null,
-                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-300 mb-2 font-semibold" }, "How Meaningful Did Today Feel"),
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#4a4335] mb-2 font-semibold" }, "How Meaningful Did Today Feel"),
                     React.createElement("div", { className: "flex gap-2" }, [1, 2, 3, 4, 5].map((n) => (React.createElement("button", { key: n, onClick: () => setDay("purposeRating", today.purposeRating === n ? null : n), className: "flex-1 py-2.5 rounded-xl border text-base font-mono font-bold transition-colors " +
-                            (today.purposeRating === n ? "bg-neutral-200 text-neutral-950 border-neutral-200" : "border-neutral-700 text-neutral-400") }, n))))),
+                            (today.purposeRating === n ? "bg-[#2a2419] text-white border-[#2a2419]" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]") }, n))))),
                 React.createElement(GroupHeader, { icon: Zap, color: AMBER }, "Sexual Vigour"),
                 React.createElement(SectionLabel, null, "Priming Actions"),
-                React.createElement(Rows, null, primeToday.map((it) => (React.createElement(YesNo, { key: it.id, mode: "vigour", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))),
+                React.createElement(TileGrid, null, primeToday.map((it) => (React.createElement(Tile, { key: it.id, mode: "vigour", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))),
                 React.createElement(SectionLabel, null, "Supplements"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex flex-wrap gap-2" }, data.settings.supplements.map((s) => {
                         const on = !!(today.supplementsTaken && today.supplementsTaken[s]);
                         return (React.createElement("button", { key: s, onClick: () => setDay("supplementsTaken", { ...today.supplementsTaken, [s]: !on }), className: "px-3 py-1.5 rounded-full text-xs uppercase tracking-wide border transition-colors font-semibold " +
-                                (on ? "text-neutral-950 font-bold" : "border-neutral-700 text-neutral-400"), style: on ? { background: AMBER, borderColor: AMBER } : undefined }, s));
+                                (on ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: on ? { background: AMBER, borderColor: AMBER } : undefined }, s));
                     }))),
                 React.createElement(SectionLabel, null, "Sleep"),
                 React.createElement(Card, null,
                     React.createElement(NumField, { label: "Sleep Score", value: today.sleep, onChange: (v) => setDay("sleep", v), suffix: "%" })),
                 isToday && React.createElement("div", { className: "mt-8 text-center flex items-center justify-center gap-4" },
-                    !confirmRelapse && React.createElement("button", { onClick: () => setConfirmRelapse(true), className: "text-xs text-neutral-600 underline uppercase tracking-wide" }, "Log A Relapse"),
-                    !confirmWetDream && React.createElement("button", { onClick: () => setConfirmWetDream(true), className: "text-xs text-neutral-600 underline uppercase tracking-wide" }, "Log A Wet Dream")),
+                    !confirmRelapse && React.createElement("button", { onClick: () => setConfirmRelapse(true), className: "text-xs text-[#9a9285] underline uppercase tracking-wide" }, "Log A Relapse"),
+                    !confirmWetDream && React.createElement("button", { onClick: () => setConfirmWetDream(true), className: "text-xs text-[#9a9285] underline uppercase tracking-wide" }, "Log A Wet Dream")),
                 isToday && confirmRelapse && (React.createElement(Card, { className: "mt-3" },
-                    React.createElement("div", { className: "text-sm text-neutral-300 mb-3" }, "Log a relapse now? Honesty keeps the data \u2014 and you \u2014 sharp."),
+                    React.createElement("div", { className: "text-sm text-[#4a4335] mb-3" }, "Log a relapse now? Honesty keeps the data \u2014 and you \u2014 sharp."),
                     React.createElement("div", { className: "flex gap-2" },
-                        React.createElement("button", { onClick: logRelapse, className: "flex-1 py-2.5 rounded-xl bg-rose-500 text-neutral-50 text-sm font-bold uppercase" }, "Yes, Log It"),
-                        React.createElement("button", { onClick: () => setConfirmRelapse(false), className: "flex-1 py-2.5 rounded-xl bg-neutral-800 text-neutral-300 text-sm uppercase" }, "Cancel")))),
+                        React.createElement("button", { onClick: logRelapse, className: "flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold uppercase" }, "Yes, Log It"),
+                        React.createElement("button", { onClick: () => setConfirmRelapse(false), className: "flex-1 py-2.5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-sm uppercase" }, "Cancel")))),
                 isToday && confirmWetDream && (React.createElement(Card, { className: "mt-3" },
-                    React.createElement("div", { className: "text-sm text-neutral-300 mb-3" }, "Log a wet dream for today? Used only for Pattern correlation \u2014 same as relapses."),
+                    React.createElement("div", { className: "text-sm text-[#4a4335] mb-3" }, "Log a wet dream for today? Used only for Pattern correlation \u2014 same as relapses."),
                     React.createElement("div", { className: "flex gap-2" },
                         React.createElement("button", { onClick: logWetDream, className: "flex-1 py-2.5 rounded-xl text-neutral-950 text-sm font-bold uppercase", style: { background: AMBER } }, "Yes, Log It"),
-                        React.createElement("button", { onClick: () => setConfirmWetDream(false), className: "flex-1 py-2.5 rounded-xl bg-neutral-800 text-neutral-300 text-sm uppercase" }, "Cancel")))))),
+                        React.createElement("button", { onClick: () => setConfirmWetDream(false), className: "flex-1 py-2.5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-sm uppercase" }, "Cancel")))))),
             view === "stats" && st && (React.createElement(React.Fragment, null,
-                React.createElement("div", { className: "font-serif text-2xl text-neutral-100 mb-4" }, "Patterns"),
+                React.createElement("div", { className: "font-serif text-2xl text-[#2a2419] mb-4" }, "Patterns"),
                 React.createElement(Seg, { value: period, allowClear: false, onChange: (v) => v && setPeriod(v), options: [{ v: "D", label: "Day" }, { v: "W", label: "Week" }, { v: "M", label: "Month" }, { v: "Y", label: "Year" }, { v: "A", label: "All" }] }),
                 React.createElement("div", { className: "grid grid-cols-2 gap-3 mt-4" },
                     React.createElement(Card, null,
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Avg Risk"),
+                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Avg Risk"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold mt-1", style: { color: st.avgRisk === null ? "#e5e5e5" : riskColor(st.avgRisk) } }, st.avgRisk === null ? "—" : Math.round(st.avgRisk))),
                     React.createElement(Card, null,
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Vigour"),
+                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Vigour"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold mt-1", style: { color: AMBER } }, st.vigour === null ? "—" : Math.round(st.vigour) + "%")),
                     React.createElement(Card, null,
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Urges Survived"),
+                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Urges Survived"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold mt-1", style: { color: TEAL } }, st.urges)),
                     React.createElement(Card, null,
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Relapses"),
-                        React.createElement("div", { className: "font-mono text-2xl font-bold text-neutral-100 mt-1" }, st.relapses)),
+                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Relapses"),
+                        React.createElement("div", { className: "font-mono text-2xl font-bold text-[#2a2419] mt-1" }, st.relapses)),
                     React.createElement(Card, null,
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Wet Dreams"),
+                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Wet Dreams"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold mt-1", style: { color: AMBER } }, st.wetDreams)),
                     React.createElement(Card, null,
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Clean"),
+                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Clean"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold mt-1", style: { color: AMBER } },
                             cleanPct,
                             "%")),
                     React.createElement(Card, null,
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500" }, "Best Streak"),
-                        React.createElement("div", { className: "font-mono text-2xl font-bold text-neutral-100 mt-1" },
+                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Best Streak"),
+                        React.createElement("div", { className: "font-mono text-2xl font-bold text-[#2a2419] mt-1" },
                             bestStreak,
                             "D"))),
                 React.createElement(SectionLabel, null, "Last 14 Days"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex gap-1.5 justify-between" }, last14.map((d) => (React.createElement("div", { key: d.k, title: d.k, className: "flex-1 h-9 rounded", style: { background: d.rel ? ROSE : !d.logged ? "#292524" : riskColor(d.score) } })))),
-                    React.createElement("div", { className: "text-xs text-neutral-500 mt-2 uppercase tracking-wide" }, "Teal safe \u00B7 Amber caution \u00B7 Red risk/relapse \u00B7 Grey unlogged")),
+                    React.createElement("div", { className: "text-xs text-[#8a8172] mt-2 uppercase tracking-wide" }, "Teal safe \u00B7 Amber caution \u00B7 Red risk/relapse \u00B7 Grey unlogged")),
                 React.createElement(SectionLabel, null, "Relapse Patterns"),
-                React.createElement(Card, null, correlations === null ? (React.createElement("div", { className: "text-sm text-neutral-400" }, "Unlocks after 3 logged relapses.")) : correlations.length === 0 ? (React.createElement("div", { className: "text-sm text-neutral-400" }, "Keep logging.")) : (correlations.map((c) => (React.createElement("div", { key: c.label, className: "py-2 border-b border-neutral-800 last:border-0" },
-                    React.createElement("div", { className: "text-sm text-neutral-200 uppercase tracking-wide font-semibold" }, c.label),
-                    React.createElement("div", { className: "text-xs text-neutral-500" },
+                React.createElement(Card, null, correlations === null ? (React.createElement("div", { className: "text-sm text-[#6f6757]" }, "Unlocks after 3 logged relapses.")) : correlations.length === 0 ? (React.createElement("div", { className: "text-sm text-[#6f6757]" }, "Keep logging.")) : (correlations.map((c) => (React.createElement("div", { key: c.label, className: "py-2 border-b border-[rgba(42,36,25,0.10)] last:border-0" },
+                    React.createElement("div", { className: "text-sm text-[#332d20] uppercase tracking-wide font-semibold" }, c.label),
+                    React.createElement("div", { className: "text-xs text-[#8a8172]" },
                         "Present on ",
                         c.rel,
                         "% of relapse days \u00B7 ",
                         c.base,
                         "% of all days")))))),
                 React.createElement(SectionLabel, null, "Wet Dream Patterns"),
-                React.createElement(Card, null, wetDreamCorrelations === null ? (React.createElement("div", { className: "text-sm text-neutral-400" }, "Unlocks after 3 logged wet dreams.")) : wetDreamCorrelations.length === 0 ? (React.createElement("div", { className: "text-sm text-neutral-400" }, "Keep logging.")) : (wetDreamCorrelations.map((c) => (React.createElement("div", { key: c.label, className: "py-2 border-b border-neutral-800 last:border-0" },
-                    React.createElement("div", { className: "text-sm text-neutral-200 uppercase tracking-wide font-semibold" }, c.label),
-                    React.createElement("div", { className: "text-xs text-neutral-500" },
+                React.createElement(Card, null, wetDreamCorrelations === null ? (React.createElement("div", { className: "text-sm text-[#6f6757]" }, "Unlocks after 3 logged wet dreams.")) : wetDreamCorrelations.length === 0 ? (React.createElement("div", { className: "text-sm text-[#6f6757]" }, "Keep logging.")) : (wetDreamCorrelations.map((c) => (React.createElement("div", { key: c.label, className: "py-2 border-b border-[rgba(42,36,25,0.10)] last:border-0" },
+                    React.createElement("div", { className: "text-sm text-[#332d20] uppercase tracking-wide font-semibold" }, c.label),
+                    React.createElement("div", { className: "text-xs text-[#8a8172]" },
                         "Present on ",
                         c.rel,
                         "% of wet dream days \u00B7 ",
                         c.base,
                         "% of all days")))))))),
             view === "guide" && (React.createElement(React.Fragment, null,
-                React.createElement("div", { className: "font-serif text-2xl text-neutral-100 mb-4" }, "Guide"),
+                React.createElement("div", { className: "font-serif text-2xl text-[#2a2419] mb-4" }, "Guide"),
                 GUIDE.map((g, i) => (React.createElement(Card, { key: g.t, className: "mb-2.5" },
                     React.createElement("button", { onClick: () => setOpenGuide(openGuide === i ? null : i), className: "w-full flex items-center justify-between text-left" },
-                        React.createElement("span", { className: "text-sm font-bold uppercase tracking-wide text-neutral-200" }, g.t),
-                        React.createElement(ChevronDown, { size: 16, className: "text-neutral-500 transition-transform " + (openGuide === i ? "rotate-180" : "") })),
-                    openGuide === i && React.createElement("p", { className: "text-sm text-neutral-400 mt-2 leading-relaxed" }, g.b)))))),
+                        React.createElement("span", { className: "text-sm font-bold uppercase tracking-wide text-[#332d20]" }, g.t),
+                        React.createElement(ChevronDown, { size: 16, className: "text-[#8a8172] transition-transform " + (openGuide === i ? "rotate-180" : "") })),
+                    openGuide === i && React.createElement("p", { className: "text-sm text-[#6f6757] mt-2 leading-relaxed" }, g.b)))))),
             view === "settings" && (React.createElement(React.Fragment, null,
-                React.createElement("div", { className: "font-serif text-2xl text-neutral-100 mb-4" }, "Settings"),
+                React.createElement("div", { className: "font-serif text-2xl text-[#2a2419] mb-4" }, "Settings"),
                 React.createElement(SectionLabel, null, "Your Purpose Card"),
                 React.createElement(Card, null,
-                    React.createElement("textarea", { value: data.settings.purposeText, onChange: (e) => setSetting("purposeText", e.target.value), rows: 6, className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-neutral-200 leading-relaxed" }),
-                    React.createElement("div", { className: "text-xs text-neutral-500 mt-1" }, "Shown when you tap Urge.")),
+                    React.createElement("textarea", { value: data.settings.purposeText, onChange: (e) => setSetting("purposeText", e.target.value), rows: 6, className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#332d20] leading-relaxed" }),
+                    React.createElement("div", { className: "text-xs text-[#8a8172] mt-1" }, "Shown when you tap Urge.")),
                 React.createElement(SectionLabel, null, "Prevention Checklist Items"),
                 React.createElement(Card, null, items.filter((i) => i.list === "prev").map((it) => React.createElement(ItemEditorRow, { key: it.id, item: it }))),
                 React.createElement(SectionLabel, null, "Vigour Checklist Items"),
                 React.createElement(Card, null, items.filter((i) => i.list === "prime").map((it) => React.createElement(ItemEditorRow, { key: it.id, item: it }))),
-                React.createElement("div", { className: "mt-3" }, !showAdd ? (React.createElement("button", { onClick: () => setShowAdd(true), className: "w-full py-3 rounded-2xl border border-dashed border-neutral-700 text-neutral-400 text-sm flex items-center justify-center gap-1.5 uppercase tracking-wide" },
+                React.createElement("div", { className: "mt-3" }, !showAdd ? (React.createElement("button", { onClick: () => setShowAdd(true), className: "w-full py-3 rounded-2xl border border-dashed border-[rgba(42,36,25,0.16)] text-[#6f6757] text-sm flex items-center justify-center gap-1.5 uppercase tracking-wide" },
                     React.createElement(Plus, { size: 16 }),
                     " Add An Item")) : (React.createElement(Card, null,
                     React.createElement("input", { value: addForm.label, onChange: (e) => setAddForm({ ...addForm, label: e.target.value }), placeholder: "Item name\u2026", className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600 mb-3" }),
-                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5" }, "List"),
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "List"),
                     React.createElement(Seg, { value: addForm.list, allowClear: false, onChange: (v) => v && setAddForm({ ...addForm, list: v }), options: [{ v: "prev", label: "Prevention" }, { v: "prime", label: "Vigour" }] }),
                     addForm.list === "prev" && (React.createElement(React.Fragment, null,
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5 mt-3" }, "Type"),
+                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5 mt-3" }, "Type"),
                         React.createElement(Seg, { value: addForm.kind, allowClear: false, onChange: (v) => v && setAddForm({ ...addForm, kind: v }), options: [{ v: "risk", label: "Risk", tone: "risk" }, { v: "habit", label: "Protective", tone: "teal" }] }))),
-                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5 mt-3" }, "Weight"),
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5 mt-3" }, "Weight"),
                     React.createElement(Seg, { value: addForm.weight, allowClear: false, onChange: (v) => v && setAddForm({ ...addForm, weight: v }), options: [{ v: "low", label: "Low" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }] }),
-                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1.5 mt-3" }, "Days"),
+                    React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5 mt-3" }, "Days"),
                     React.createElement("div", { className: "flex gap-1 mb-1.5" },
-                        React.createElement("button", { onClick: () => setAddForm({ ...addForm, daily: true }), className: "px-3 py-1.5 rounded-lg text-xs uppercase border " + (addForm.daily ? "font-bold text-neutral-950" : "border-neutral-700 text-neutral-400"), style: addForm.daily ? { background: TEAL, borderColor: TEAL } : undefined }, "Every Day"),
-                        React.createElement("button", { onClick: () => setAddForm({ ...addForm, daily: false }), className: "px-3 py-1.5 rounded-lg text-xs uppercase border " + (!addForm.daily ? "bg-neutral-200 border-neutral-200 text-neutral-950 font-bold" : "border-neutral-700 text-neutral-400") }, "Specific Days")),
+                        React.createElement("button", { onClick: () => setAddForm({ ...addForm, daily: true }), className: "px-3 py-1.5 rounded-lg text-xs uppercase border " + (addForm.daily ? "font-bold text-neutral-950" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: addForm.daily ? { background: TEAL, borderColor: TEAL } : undefined }, "Every Day"),
+                        React.createElement("button", { onClick: () => setAddForm({ ...addForm, daily: false }), className: "px-3 py-1.5 rounded-lg text-xs uppercase border " + (!addForm.daily ? "bg-[#2a2419] border-[#2a2419] text-white font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]") }, "Specific Days")),
                     !addForm.daily && (React.createElement("div", { className: "flex gap-1" }, WD.map((w, i) => {
                         const on = addForm.days.includes(i);
-                        return (React.createElement("button", { key: w, onClick: () => setAddForm({ ...addForm, days: on ? addForm.days.filter((d) => d !== i) : [...addForm.days, i] }), className: "flex-1 py-1.5 rounded-lg text-xs border " + (on ? "bg-neutral-200 border-neutral-200 text-neutral-950 font-bold" : "border-neutral-700 text-neutral-500") }, w));
+                        return (React.createElement("button", { key: w, onClick: () => setAddForm({ ...addForm, days: on ? addForm.days.filter((d) => d !== i) : [...addForm.days, i] }), className: "flex-1 py-1.5 rounded-lg text-xs border " + (on ? "bg-[#2a2419] border-[#2a2419] text-white font-bold" : "border-[rgba(42,36,25,0.16)] text-[#8a8172]") }, w));
                     }))),
                     React.createElement("div", { className: "flex gap-2 mt-4" },
                         React.createElement("button", { onClick: addItem, className: "flex-1 py-2.5 rounded-xl text-neutral-950 text-sm font-bold uppercase", style: { background: TEAL } }, "Add Item"),
-                        React.createElement("button", { onClick: () => setShowAdd(false), className: "flex-1 py-2.5 rounded-xl bg-neutral-800 text-neutral-300 text-sm uppercase" }, "Cancel"))))),
+                        React.createElement("button", { onClick: () => setShowAdd(false), className: "flex-1 py-2.5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-sm uppercase" }, "Cancel"))))),
                 React.createElement(SectionLabel, null, "Supplements"),
                 React.createElement(Card, null,
-                    data.settings.supplements.map((s) => (React.createElement("div", { key: s, className: "flex items-center justify-between py-2 border-b border-neutral-800 last:border-0" },
-                        React.createElement("span", { className: "text-sm text-neutral-300 uppercase tracking-wide" }, s),
+                    data.settings.supplements.map((s) => (React.createElement("div", { key: s, className: "flex items-center justify-between py-2 border-b border-[rgba(42,36,25,0.10)] last:border-0" },
+                        React.createElement("span", { className: "text-sm text-[#4a4335] uppercase tracking-wide" }, s),
                         React.createElement("button", { onClick: () => setSetting("supplements", data.settings.supplements.filter((x) => x !== s)) },
-                            React.createElement(Trash2, { size: 15, className: "text-neutral-600" }))))),
+                            React.createElement(Trash2, { size: 15, className: "text-[#9a9285]" }))))),
                     React.createElement("div", { className: "flex gap-2 mt-3" },
                         React.createElement("input", { value: newSup, onChange: (e) => setNewSup(e.target.value), placeholder: "Add supplement\u2026", className: "flex-1 rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
                         React.createElement("button", { onClick: () => { const v = newSup.trim(); if (v && !data.settings.supplements.includes(v))
@@ -1180,14 +1268,14 @@ function App() {
                             React.createElement(Plus, { size: 16 })))),
                 React.createElement(SectionLabel, null, "Daily Reminders"),
                 React.createElement(Card, null,
-                    React.createElement("div", { className: "text-xs text-neutral-500 mb-3 leading-relaxed" }, "Bull is a static app with no server, so it can't push notifications on its own. This exports two daily recurring reminders as a calendar file \u2014 import it once into iOS Calendar or Reminders for real notifications."),
+                    React.createElement("div", { className: "text-xs text-[#8a8172] mb-3 leading-relaxed" }, "Bull is a static app with no server, so it can't push notifications on its own. This exports two daily recurring reminders as a calendar file \u2014 import it once into iOS Calendar or Reminders for real notifications."),
                     React.createElement("div", { className: "flex gap-2 mb-3" },
                         React.createElement("div", { className: "flex-1" },
-                            React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1" }, "Morning"),
-                            React.createElement("input", { type: "time", value: data.settings.morningReminderTime || "08:00", onChange: (e) => setSetting("morningReminderTime", e.target.value), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-neutral-100" })),
+                            React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1" }, "Morning"),
+                            React.createElement("input", { type: "time", value: data.settings.morningReminderTime || "08:00", onChange: (e) => setSetting("morningReminderTime", e.target.value), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" })),
                         React.createElement("div", { className: "flex-1" },
-                            React.createElement("div", { className: "text-xs uppercase tracking-wide text-neutral-500 mb-1" }, "Evening"),
-                            React.createElement("input", { type: "time", value: data.settings.eveningReminderTime || "21:30", onChange: (e) => setSetting("eveningReminderTime", e.target.value), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-neutral-100" }))),
+                            React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1" }, "Evening"),
+                            React.createElement("input", { type: "time", value: data.settings.eveningReminderTime || "21:30", onChange: (e) => setSetting("eveningReminderTime", e.target.value), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" }))),
                     React.createElement("button", { onClick: () => downloadReminderIcs(data.settings), className: "w-full py-2.5 rounded-xl text-neutral-950 text-xs font-bold uppercase tracking-wide", style: { background: TEAL } }, "Download Reminders (.ics)")),
                 React.createElement(SectionLabel, null, "Accountability Frequency"),
                 React.createElement(Card, null,
@@ -1198,8 +1286,8 @@ function App() {
                         React.createElement("input", { type: "date", value: data.settings.manualLastRelapseDate ? new Date(data.settings.manualLastRelapseDate - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : "", onChange: (e) => {
                                 const v = e.target.value;
                                 setSetting("manualLastRelapseDate", v ? new Date(v + "T00:00:00").getTime() : null);
-                            }, className: "flex-1 rounded-xl bull-field px-3 py-2 text-sm outline-none text-neutral-100" }),
-                        data.settings.manualLastRelapseDate && (React.createElement("button", { onClick: () => setSetting("manualLastRelapseDate", null), className: "px-3 rounded-xl bg-neutral-800 text-neutral-400 text-xs uppercase tracking-wide" }, "Clear")))),
+                            }, className: "flex-1 rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" }),
+                        data.settings.manualLastRelapseDate && (React.createElement("button", { onClick: () => setSetting("manualLastRelapseDate", null), className: "px-3 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-xs uppercase tracking-wide" }, "Clear")))),
                 React.createElement(SectionLabel, null, "Data"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex gap-2 mb-3" },
@@ -1212,7 +1300,7 @@ function App() {
                                 a.click();
                                 setTimeout(() => URL.revokeObjectURL(url), 5000);
                             }, className: "flex-1 py-2.5 rounded-xl text-black text-xs font-bold uppercase tracking-wide", style: { background: TEAL } }, "Export"),
-                        React.createElement("label", { className: "flex-1 py-2.5 rounded-xl bg-neutral-800 text-neutral-300 text-xs font-bold uppercase tracking-wide text-center cursor-pointer" },
+                        React.createElement("label", { className: "flex-1 py-2.5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-xs font-bold uppercase tracking-wide text-center cursor-pointer" },
                             "Import",
                             React.createElement("input", { type: "file", accept: ".json,application/json", className: "hidden", onChange: (e) => {
                                     const f = e.target.files && e.target.files[0];
@@ -1233,15 +1321,15 @@ function App() {
                                 } }))),
                     resetStep === 0 && React.createElement("button", { onClick: () => setResetStep(1), className: "text-sm text-rose-400 uppercase tracking-wide" }, "Reset All Data"),
                     resetStep === 1 && (React.createElement("div", null,
-                        React.createElement("div", { className: "text-sm text-neutral-300 mb-2" }, "This wipes every log, urge, relapse, item and setting. Sure?"),
+                        React.createElement("div", { className: "text-sm text-[#4a4335] mb-2" }, "This wipes every log, urge, relapse, item and setting. Sure?"),
                         React.createElement("div", { className: "flex gap-2" },
                             React.createElement("button", { onClick: async () => {
                                     await storageClear();
                                     setResetStep(0);
                                     persist({ version: 6, settings: { ...DEFAULT_SETTINGS }, items: DEFAULT_ITEMS.map((i) => ({ ...i, freq: Array.isArray(i.freq) ? [...i.freq] : i.freq })), days: {}, urges: [], relapses: [], firstUse: Date.now() });
-                                }, className: "flex-1 py-2 rounded-xl bg-rose-500 text-neutral-50 text-sm font-bold uppercase" }, "Wipe Everything"),
-                            React.createElement("button", { onClick: () => setResetStep(0), className: "flex-1 py-2 rounded-xl bg-neutral-800 text-neutral-300 text-sm uppercase" }, "Cancel")))),
-                    React.createElement("div", { className: "text-xs text-neutral-600 mt-3" }, "On-device only."))))),
+                                }, className: "flex-1 py-2 rounded-xl bg-rose-500 text-white text-sm font-bold uppercase" }, "Wipe Everything"),
+                            React.createElement("button", { onClick: () => setResetStep(0), className: "flex-1 py-2 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-sm uppercase" }, "Cancel")))),
+                    React.createElement("div", { className: "text-xs text-[#9a9285] mt-3" }, "On-device only."))))),
         React.createElement("div", { className: "fixed bottom-0 inset-x-0 z-[45] bull-nav", style: { paddingBottom: "env(safe-area-inset-bottom, 0px)" } },
             React.createElement("div", { className: "max-w-md mx-auto flex" },
                 React.createElement(NavBtn, { id: "today", icon: Shield, label: "Today" }),
