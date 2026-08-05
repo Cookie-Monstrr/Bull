@@ -129,6 +129,58 @@ function downloadReminderIcs(settings) {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
+/* ---------- score visuals: physique (vigour) + devil (risk) ---------- */
+function pts(arr) { return arr.map((p) => p[0].toFixed(2) + "," + p[1].toFixed(2)).join(" "); }
+function VigourFigure({ pct, size = 58 }) {
+    const t = Math.max(0, Math.min(1, (pct || 0) / 100));
+    const sw = 7.5 + 11.5 * t, wz = 6.5 + 3.0 * t, aw = 2.2 + 3.4 * t;
+    const lg = 3.6 + 3.0 * t, nk = 2.0 + 2.4 * t, hr = 8.6 - 0.6 * t;
+    const bd = 1.2 + 7.5 * t, bw = 2.4 + (hr * 0.96 - 2.4) * t;
+    const G = "url(#figGrad)";
+    return (React.createElement("div", { className: "flex flex-col items-center" },
+        React.createElement("svg", { width: size, height: size, viewBox: "0 0 100 100", style: { overflow: "visible" } },
+            React.createElement("defs", null,
+                React.createElement("linearGradient", { id: "figGrad", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+                    React.createElement("stop", { offset: "0%", stopColor: "#e6b53f" }),
+                    React.createElement("stop", { offset: "100%", stopColor: "#c9962c" }))),
+            React.createElement("polygon", { points: pts([[50 - wz, 64], [50 - wz + lg, 64], [50 - 1.2, 93], [50 - 1.2 - lg, 93]]), fill: G }),
+            React.createElement("polygon", { points: pts([[50 + wz, 64], [50 + wz - lg, 64], [50 + 1.2, 93], [50 + 1.2 + lg, 93]]), fill: G }),
+            React.createElement("polygon", { points: pts([[50 - sw, 41], [50 + sw, 41], [50 + wz, 65], [50 - wz, 65]]), fill: G }),
+            React.createElement("polygon", { points: pts([[50 - sw, 41.5], [50 - sw - aw, 43.5], [50 - sw - aw + 0.8, 67], [50 - sw + 1.6, 66]]), fill: G }),
+            React.createElement("polygon", { points: pts([[50 + sw, 41.5], [50 + sw + aw, 43.5], [50 + sw + aw - 0.8, 67], [50 + sw - 1.6, 66]]), fill: G }),
+            React.createElement("polygon", { points: pts([[50 - nk, 32], [50 + nk, 32], [50 + nk, 42], [50 - nk, 42]]), fill: G }),
+            React.createElement("circle", { cx: 50, cy: 24, r: hr, fill: G }),
+            React.createElement("path", { d: `M${(50 - bw).toFixed(2)} 26.5 C${(50 - bw - 1.2).toFixed(2)} ${(29 + bd).toFixed(2)}, 50 ${(31.5 + bd).toFixed(2)}, ${(50 + bw + 1.2).toFixed(2)} ${(29 + bd).toFixed(2)} L${(50 + bw).toFixed(2)} 26.5 Z`, fill: "#6b4d10", opacity: 0.45 + 0.55 * t }),
+            t > 0.3 && React.createElement("g", { stroke: "#faf6ef", strokeLinecap: "round", fill: "none", opacity: (t - 0.3) / 0.7 },
+                React.createElement("path", { strokeWidth: "1.2", d: "M50 44 L50 62" }),
+                React.createElement("path", { strokeWidth: "1.2", d: `M${(50 - sw * 0.55).toFixed(2)} 47 L${(50 + sw * 0.55).toFixed(2)} 47` }),
+                React.createElement("path", { strokeWidth: "1", d: `M${(50 - wz * 0.6).toFixed(2)} 53 L${(50 + wz * 0.6).toFixed(2)} 53` }),
+                React.createElement("path", { strokeWidth: "1", d: `M${(50 - wz * 0.6).toFixed(2)} 58 L${(50 + wz * 0.6).toFixed(2)} 58` }))),
+        React.createElement("div", { className: "text-[9px] uppercase tracking-[0.14em] text-[#9a9285] mt-1 font-semibold" }, "Vigour \u00B7 ", Math.round(pct || 0))));
+}
+function DevilRisk({ risk, size = 58 }) {
+    const d = Math.max(0, Math.min(1, (risk || 0) / 100));
+    const sc = 0.32 + 0.88 * d, cx = 50, cy = 58;
+    const T = (x, y) => [cx + (x - 50) * sc, cy + (y - 50) * sc];
+    const col = d < 0.5 ? "#d24a44" : "#b62f2b";
+    const tail = [T(59, 64), T(70, 66), T(74, 54), T(70, 46)];
+    return (React.createElement("div", { className: "flex flex-col items-center" },
+        React.createElement("svg", { width: size, height: size, viewBox: "0 0 100 100", style: { overflow: "visible" } },
+            React.createElement("polyline", { points: pts(tail), fill: "none", stroke: col, strokeWidth: 2.2 * sc + 0.7, strokeLinecap: "round" }),
+            React.createElement("polygon", { points: pts([T(70, 46), T(66, 42), T(74, 42)]), fill: col }),
+            React.createElement("polygon", { points: pts([T(41, 45), T(59, 45), T(62, 75), T(38, 75)]), fill: col }),
+            React.createElement("polygon", { points: pts([T(41, 47), T(32, 57), T(35, 60), T(44, 51)]), fill: col }),
+            React.createElement("polygon", { points: pts([T(59, 47), T(68, 57), T(65, 60), T(56, 51)]), fill: col }),
+            React.createElement("polygon", { points: pts([T(43, 75), T(48, 75), T(47, 89), T(41, 89)]), fill: col }),
+            React.createElement("polygon", { points: pts([T(57, 75), T(52, 75), T(53, 89), T(59, 89)]), fill: col }),
+            React.createElement("circle", { cx: T(50, 33)[0], cy: T(50, 33)[1], r: 9.5 * sc, fill: col }),
+            React.createElement("polygon", { points: pts([T(43, 27), T(38, 16), T(46, 25)]), fill: col }),
+            React.createElement("polygon", { points: pts([T(57, 27), T(62, 16), T(54, 25)]), fill: col }),
+            React.createElement("circle", { cx: T(46.5, 32)[0], cy: T(46.5, 32)[1], r: 1.3 * sc, fill: "#faf6ef" }),
+            React.createElement("circle", { cx: T(53.5, 32)[0], cy: T(53.5, 32)[1], r: 1.3 * sc, fill: "#faf6ef" }),
+            React.createElement("polyline", { points: pts([T(45, 37), T(50, 40), T(55, 37)]), fill: "none", stroke: "#faf6ef", strokeWidth: 1.3 * sc + 0.35, strokeLinecap: "round" })),
+        React.createElement("div", { className: "text-[9px] uppercase tracking-[0.14em] text-[#9a9285] mt-1 font-semibold" }, "Risk \u00B7 ", Math.round(risk || 0))));
+}
 /* ---------- VO2 max bands ----------
    Approximations of the widely-published Cooper Institute / ACSM age-and-sex
    categories. Treat as indicative: verify against the current source before
@@ -211,11 +263,23 @@ function MonthView({ data, items, onPick, onClose }) {
                 React.createElement("button", { onClick: () => mOff < 0 && setMOff(mOff + 1), disabled: mOff >= 0, className: "px-3 py-2 text-lg " + (mOff >= 0 ? "text-[#d4cec3]" : "text-[#8a8172]") }, "\u203A")),
             React.createElement("div", { className: "grid grid-cols-7 gap-1.5 mb-2" }, ["S", "M", "T", "W", "T", "F", "S"].map((w, i) => React.createElement("div", { key: i, className: "text-center text-[9px] uppercase tracking-[0.14em] text-[#9a9285]" }, w))),
             React.createElement("div", { className: "grid grid-cols-7 gap-1.5" }, cells),
-            React.createElement("div", { className: "mt-6 space-y-1.5 text-[10px] uppercase tracking-[0.12em] text-[#9a9285]" },
-                React.createElement("div", null, "Gold fill \u00B7 logged day, deeper = higher vigour"),
-                React.createElement("div", null, "Crimson \u00B7 relapse    Dashed \u00B7 sick or travelling"),
-                React.createElement("div", null, "Amber dot \u00B7 wet dream    Outline \u00B7 today")),
-            React.createElement("button", { onClick: onClose, className: "w-full mt-7 py-3.5 rounded-2xl text-neutral-950 font-bold uppercase tracking-widest text-sm", style: { background: "var(--accent, #c9962c)" } }, "Close"))));
+            React.createElement("div", { className: "mt-7" },
+                React.createElement("div", { className: "text-[9px] uppercase tracking-[0.2em] text-[#9a9285] mb-3" }, "Legend"),
+                React.createElement("div", { className: "grid grid-cols-2 gap-y-2.5 gap-x-3" },
+                    [
+                        { sw: { background: "rgba(201,150,44,0.55)", border: "1px solid rgba(201,150,44,0.7)" }, t: "Logged \u2014 deeper = more vigour" },
+                        { sw: { background: "rgba(182,47,43,0.85)", border: "1px solid #b62f2b" }, t: "Relapse" },
+                        { sw: { background: "rgba(42,36,25,0.04)", border: "1px dashed rgba(42,36,25,0.4)" }, t: "Sick or travelling" },
+                        { sw: { background: "transparent", border: "1px solid rgba(42,36,25,0.14)" }, t: "Not logged" },
+                        { sw: { background: "transparent", border: "1px solid rgba(42,36,25,0.14)" }, dot: true, t: "Wet dream" },
+                        { sw: { background: "transparent", border: "1px solid rgba(42,36,25,0.14)", boxShadow: "0 0 0 2px #2a2419" }, t: "Today" },
+                    ].map((L, i) => React.createElement("div", { key: i, className: "flex items-center gap-2.5" },
+                        React.createElement("div", { style: { ...L.sw, width: 18, height: 18, borderRadius: 6, flexShrink: 0, position: "relative" } },
+                            L.dot && React.createElement("span", { style: { position: "absolute", bottom: 2, left: "50%", marginLeft: -2, width: 4, height: 4, borderRadius: 999, background: "#c2701e" } })),
+                        React.createElement("span", { className: "text-[10px] leading-tight text-[#8a8172]" }, L.t))))),
+            React.createElement("div", { className: "flex gap-2 mt-7" },
+                React.createElement("button", { onClick: () => { onPick(0); onClose(); }, className: "flex-1 py-3.5 rounded-2xl font-bold uppercase tracking-widest text-sm", style: { border: "1px solid rgba(42,36,25,0.18)", color: "#4a4335" } }, "Today"),
+                React.createElement("button", { onClick: onClose, className: "flex-1 py-3.5 rounded-2xl text-neutral-950 font-bold uppercase tracking-widest text-sm", style: { background: "var(--accent, #c9962c)" } }, "Close")))));
 }
 /* ---------- Apple Health receiver (Shortcuts opens Bull with query params) ---------- */
 function readHealthParams() {
@@ -1163,8 +1227,8 @@ function App() {
                             React.createElement("div", { className: "font-serif text-2xl text-[#2a2419] truncate" }, isToday ? now.toLocaleDateString(undefined, { weekday: "long" }) : now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })),
                             React.createElement("button", { onClick: () => viewOffset < 0 && setViewOffset(viewOffset + 1), disabled: viewOffset >= 0, className: "text-lg leading-none px-1 " + (viewOffset >= 0 ? "text-[#d4cec3]" : "text-[#9a9285] active:text-[#6f6757]") }, "\u203A"),
                             ),
-                        !isToday && React.createElement("button", { onClick: () => setViewOffset(0), className: "text-[10px] uppercase tracking-widest font-bold mt-0.5", style: { color: AMBER } }, "\u270E Editing Past Day \u2014 Jump To Today"),
-                        isToday && React.createElement("button", { onClick: () => setShowMonth(true), className: "text-sm text-[#8a8172] text-left flex items-center gap-1.5 active:opacity-60" },
+                        !isToday && React.createElement("div", { className: "text-[10px] uppercase tracking-widest font-bold mt-0.5", style: { color: AMBER } }, "\u270E Editing Past Day"),
+                        React.createElement("button", { onClick: () => setShowMonth(true), className: "text-sm text-[#8a8172] text-left flex items-center gap-1.5 active:opacity-60" },
                             React.createElement("span", { style: { borderBottom: "1px dashed rgba(42,36,25,0.28)" } }, now.toLocaleDateString(undefined, { day: "numeric", month: "long" })),
                             React.createElement(CalIcon, { size: 12, style: { opacity: 0.55 } }),
                             fastToday && React.createElement("span", { style: { color: AMBER } }, " \u00B7 FASTING DAY")),
@@ -1176,8 +1240,8 @@ function App() {
                                 windowDays,
                                 "D"))),
                     React.createElement("div", { className: "flex gap-3 shrink-0" },
-                        React.createElement(ShieldRisk, { risk: risk, size: 58 }),
-                        React.createElement(VigourFruit, { pct: vigourPct, size: 58 }))),
+                        React.createElement(DevilRisk, { risk: risk, size: 62 }),
+                        React.createElement(VigourFigure, { pct: vigourPct, size: 62 }))),
                 React.createElement("div", { className: "bull-forceline" }),
                 healthImported && isToday && (React.createElement("div", { className: "mt-3 rounded-xl px-3 py-2 text-[11px] tracking-wide", style: { background: "rgba(201,150,44,0.12)", color: "#8a7333" } },
                     "Imported from Health: " + healthImported.join(", "))),
@@ -1248,8 +1312,7 @@ function App() {
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex gap-2" },
                         React.createElement("button", { onClick: () => setDay("sick", !today.sick), className: "flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.sick ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: today.sick ? { background: CAUTION, borderColor: CAUTION } : undefined }, "Sick"),
-                        React.createElement("button", { onClick: () => setDay("travelling", !today.travelling), className: "flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.travelling ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: today.travelling ? { background: CAUTION, borderColor: CAUTION } : undefined }, "Travelling")),
-                    React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-2 leading-relaxed" }, "Flagged days are left out of your period averages, but Patterns still tests them for correlation with relapses and wet dreams. Today's live score isn't affected.")),
+                        React.createElement("button", { onClick: () => setDay("travelling", !today.travelling), className: "flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.travelling ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: today.travelling ? { background: CAUTION, borderColor: CAUTION } : undefined }, "Travelling"))),
                 React.createElement(SectionLabel, null, "Evening Review"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#4a4335] mb-2 font-semibold" }, "How Meaningful Did Today Feel"),
