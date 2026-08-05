@@ -212,6 +212,10 @@ function vo2Category(vo2, age, sex) {
     return { label: VO2_LABELS[idx], idx, cuts: row.cuts };
 }
 /* ---------- month view ---------- */
+function riskTileColor(r) {
+    const x = Math.max(0, Math.min(100, r));
+    return x <= 50 ? mixHex("#5c8a3c", "#c2701e", x / 50) : mixHex("#c2701e", "#b62f2b", (x - 50) / 50);
+}
 function MonthView({ data, items, onPick, onClose }) {
     const [mOff, setMOff] = useState(0);
     const now = new Date();
@@ -220,7 +224,8 @@ function MonthView({ data, items, onPick, onClose }) {
     const daysIn = new Date(year, month + 1, 0).getDate();
     const startDow = base.getDay();
     const tk = todayKey();
-    const relKeys = new Set(data.relapses.map((r) => dateKey(new Date(r.ts))));
+    const relByKey = {};
+    data.relapses.forEach((r) => { relByKey[dateKey(new Date(r.ts))] = r.type || "orgasm"; });
     const wetKeys = new Set((data.wetDreams || []).map((w) => dateKey(new Date(w.ts))));
     const t0 = new Date(); t0.setHours(12, 0, 0, 0);
     const cells = [];
@@ -232,28 +237,30 @@ function MonthView({ data, items, onPick, onClose }) {
         const rec = data.days[k];
         const future = d.getTime() > t0.getTime();
         const isToday = k === tk;
-        const relapse = relKeys.has(k);
+        const relType = relByKey[k];
         const wet = wetKeys.has(k);
-        const flagged = rec && (rec.sick === true || rec.travelling === true);
-        const v = rec ? vigourForDay({ ...emptyDay(), ...rec }, d, items, data.settings) : null;
-        const pct = v && v.total ? v.done / v.total : 0;
+        const logged = !!rec && riskLogged(rec, items);
+        const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
+        const rs = logged ? Math.round(riskScore({ ...emptyDay(), ...rec }, items, uc, !!relType)) : null;
         let style = { border: "1px solid rgba(42,36,25,0.10)", background: "transparent", color: "#b8b0a2" };
         if (future)
             style = { border: "1px solid rgba(42,36,25,0.05)", background: "transparent", color: "#d4cec3" };
-        else if (relapse)
-            style = { border: "1px solid #b62f2b", background: "rgba(182,47,43,0.85)", color: "#fff5f4", fontWeight: 700 };
-        else if (flagged)
-            style = { border: "1px dashed rgba(42,36,25,0.28)", background: "rgba(42,36,25,0.04)", color: "#8a8172" };
-        else if (rec)
-            style = { border: "1px solid rgba(201,150,44," + (0.25 + 0.5 * pct).toFixed(2) + ")", background: "rgba(201,150,44," + (0.10 + 0.55 * pct).toFixed(2) + ")", color: "#4a4335", fontWeight: 600 };
+        else if (relType)
+            style = { border: "none", background: relType === "edge" ? "#c9453f" : "#a02623", color: "#fff5f4", fontWeight: 700 };
+        else if (rs !== null)
+            style = { border: "none", background: riskTileColor(rs), color: "#fff", fontWeight: 600 };
         if (isToday)
             style.boxShadow = "0 0 0 2px #2a2419";
         cells.push(React.createElement("button", {
             key: k, disabled: future,
             onClick: () => { if (!future) { onPick(Math.round((d.getTime() - t0.getTime()) / DAY_MS)); onClose(); } },
             style: { ...style, borderRadius: 12 },
-            className: "aspect-square flex flex-col items-center justify-center text-[12px] relative active:scale-95 transition-transform",
-        }, n, wet && React.createElement("span", { className: "absolute bottom-1 w-1 h-1 rounded-full", style: { background: "#c2701e" } })));
+            className: "aspect-square flex flex-col items-center justify-center relative active:scale-95 transition-transform leading-none",
+        },
+            React.createElement("span", { className: "text-[11px]" }, n),
+            rs !== null && React.createElement("span", { className: "text-[13px] font-bold mt-0.5" }, rs),
+            relType && React.createElement("span", { className: "absolute top-1 right-1.5 text-[8px] font-bold opacity-90" }, relType === "edge" ? "E" : "O"),
+            wet && React.createElement("span", { className: "absolute bottom-1 w-1 h-1 rounded-full", style: { background: relType || rs !== null ? "#ffffff" : "#c2701e" } })));
     }
     return (React.createElement("div", { className: "fixed inset-0 z-[60] overflow-y-auto", style: { background: "#faf6ef" } },
         React.createElement("div", { className: "max-w-[430px] mx-auto p-5", style: { paddingTop: "calc(env(safe-area-inset-top,0px) + 18px)" } },
@@ -265,16 +272,21 @@ function MonthView({ data, items, onPick, onClose }) {
             React.createElement("div", { className: "grid grid-cols-7 gap-1.5" }, cells),
             React.createElement("div", { className: "mt-7" },
                 React.createElement("div", { className: "text-[9px] uppercase tracking-[0.2em] text-[#9a9285] mb-3" }, "Legend"),
+                React.createElement("div", { className: "flex items-center gap-2 mb-3" },
+                    React.createElement("div", { className: "flex-1 h-3 rounded-full", style: { background: "linear-gradient(90deg,#5c8a3c,#c2701e,#b62f2b)" } })),
+                React.createElement("div", { className: "flex justify-between text-[9px] uppercase tracking-[0.14em] text-[#9a9285] mb-4" },
+                    React.createElement("span", null, "Risk 0"),
+                    React.createElement("span", null, "Risk 100")),
                 React.createElement("div", { className: "grid grid-cols-2 gap-y-2.5 gap-x-3" },
                     [
-                        { sw: { background: "rgba(201,150,44,0.55)", border: "1px solid rgba(201,150,44,0.7)" }, t: "Logged \u2014 deeper = more vigour" },
-                        { sw: { background: "rgba(182,47,43,0.85)", border: "1px solid #b62f2b" }, t: "Relapse" },
-                        { sw: { background: "rgba(42,36,25,0.04)", border: "1px dashed rgba(42,36,25,0.4)" }, t: "Sick or travelling" },
+                        { sw: { background: "#a02623" }, badge: "O", t: "Relapse \u2014 orgasm" },
+                        { sw: { background: "#c9453f" }, badge: "E", t: "Relapse \u2014 edged" },
                         { sw: { background: "transparent", border: "1px solid rgba(42,36,25,0.14)" }, t: "Not logged" },
-                        { sw: { background: "transparent", border: "1px solid rgba(42,36,25,0.14)" }, dot: true, t: "Wet dream" },
                         { sw: { background: "transparent", border: "1px solid rgba(42,36,25,0.14)", boxShadow: "0 0 0 2px #2a2419" }, t: "Today" },
+                        { sw: { background: "transparent", border: "1px solid rgba(42,36,25,0.14)" }, dot: true, t: "Wet dream" },
                     ].map((L, i) => React.createElement("div", { key: i, className: "flex items-center gap-2.5" },
                         React.createElement("div", { style: { ...L.sw, width: 18, height: 18, borderRadius: 6, flexShrink: 0, position: "relative" } },
+                            L.badge && React.createElement("span", { style: { position: "absolute", inset: 0, color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" } }, L.badge),
                             L.dot && React.createElement("span", { style: { position: "absolute", bottom: 2, left: "50%", marginLeft: -2, width: 4, height: 4, borderRadius: 999, background: "#c2701e" } })),
                         React.createElement("span", { className: "text-[10px] leading-tight text-[#8a8172]" }, L.t))))),
             React.createElement("div", { className: "flex gap-2 mt-7" },
