@@ -483,16 +483,22 @@ function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty 
                 r -= W_PROT[it.weight];
         }
     });
-    const accessScale = scaleOf("contentAccess", "high");
-    if (d.access === "high")
-        r += Math.round(25 * accessScale);
-    else if (d.access === "med")
-        r += Math.round(12 * accessScale);
-    const checkoutScale = scaleOf("checkout", "high");
-    if (d.checkout === "lot")
-        r += Math.round(12 * checkoutScale);
-    else if (d.checkout === "few")
-        r += Math.round(4 * checkoutScale);
+    const hasContentAccess = items.some((i) => i.id === "contentAccess");
+    if (hasContentAccess) {
+        const accessScale = scaleOf("contentAccess", "high");
+        if (d.access === "high")
+            r += Math.round(25 * accessScale);
+        else if (d.access === "med")
+            r += Math.round(12 * accessScale);
+    }
+    const hasCheckout = items.some((i) => i.id === "checkout");
+    if (hasCheckout) {
+        const checkoutScale = scaleOf("checkout", "high");
+        if (d.checkout === "lot")
+            r += Math.round(12 * checkoutScale);
+        else if (d.checkout === "few")
+            r += Math.round(4 * checkoutScale);
+    }
     if (d.recovery !== null && d.recovery !== undefined && d.recovery !== "" && Number(d.recovery) < 40) {
         r += Math.round(10 * scaleOf("recoveryLow", "med"));
     }
@@ -846,7 +852,6 @@ function Splash({ vigour, risk, cleanPct, streak, onDone }) {
                                     React.createElement("ellipse", { cx: 60, cy: 66, rx: 3.2, ry: 6.5, fill: "#f7e2ae", opacity: 0.9, transform: "rotate(18 60 66)" }),
                                     React.createElement("ellipse", { cx: 43, cy: 44, rx: 1.6, ry: 3.8, fill: "#f7e2ae", opacity: 0.25, transform: "rotate(-10 43 44)" }))))))),
             React.createElement("div", { className: "word" }, "Bull"),
-            React.createElement("div", { className: "line" }, "Day ", streak, " \u00B7 Discipline compounding"),
             React.createElement("div", { className: "stats" },
                 React.createElement("div", { className: "stat" }, React.createElement("div", { className: "num" }, vigDisp), React.createElement("div", { className: "lbl" }, "Vigour")),
                 React.createElement("div", { className: "bsdivider" }),
@@ -1026,8 +1031,8 @@ function App() {
         });
         const vigAvg = ht ? (hd / ht) : 0.6;
         const protAvg = rN ? 1 - (rSum / rN) / 100 : 0.85;
-        const vt = Math.max(0, Math.min(1, vigAvg));
-        const dgr = Math.pow(Math.max(0, Math.min(1, 1 - protAvg)), 1.35);
+        const vt = Number.isFinite(vigAvg) ? Math.max(0, Math.min(1, vigAvg)) : 0.6;
+        const dgr = Number.isFinite(protAvg) ? Math.pow(Math.max(0, Math.min(1, 1 - protAvg)), 1.35) : 0.15;
         return {
             vt, dgr, tense: protAvg <= 0.33,
             accent: mixHex("#a9946a", "#c9962c", Math.min(1, vt * 1.25)),
@@ -1116,14 +1121,14 @@ function App() {
     const CORRELATION_FACTORS = [
         ...items.filter((i) => i.list === "prev" && i.kind === "risk").map((i) => ({ label: i.label, test: (d) => d.checks && d.checks[i.id] === true })),
         ...items.filter((i) => i.list === "prev" && i.kind === "habit").map((i) => ({ label: "Skipped: " + i.label, test: (d) => !(d.checks && d.checks[i.id] === true) })),
-        { label: "Med/High Content Access", test: (d) => d.access === "med" || d.access === "high" },
-        { label: "Heavy Visual Triggers", test: (d) => d.checkout === "lot" },
+        items.some((i) => i.id === "contentAccess") && { label: "Med/High Content Access", test: (d) => d.access === "med" || d.access === "high" },
+        items.some((i) => i.id === "checkout") && { label: "Heavy Visual Triggers", test: (d) => d.checkout === "lot" },
         { label: "Recovery Below 40%", test: (d) => d.recovery !== null && d.recovery !== undefined && d.recovery !== "" && Number(d.recovery) < 40 },
         { label: "Low-Purpose Day (1–2)", test: (d) => d.purposeRating !== null && d.purposeRating !== undefined && d.purposeRating <= 2 },
         { label: "HRV 10%+ Below Baseline", test: (d, ctx) => d.hrv !== null && d.hrv !== undefined && d.hrv !== "" && ctx && ctx.hrvBaseline && Number(d.hrv) < ctx.hrvBaseline * 0.9 },
         { label: "Flagged Sick", test: (d) => d.sick === true },
         { label: "Flagged Travelling", test: (d) => d.travelling === true },
-    ];
+    ].filter(Boolean);
     const hrvBaseline = (() => {
         const vals = Object.keys(data.days).map((k) => data.days[k] && data.days[k].hrv).filter((x) => x !== null && x !== undefined && x !== "" && !isNaN(Number(x))).map(Number);
         return vals.length >= 7 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
@@ -1185,6 +1190,7 @@ function App() {
         const kindLabel = item.kind === "risk" ? "RISK" : item.kind === "habit" ? "PROTECTIVE"
             : item.kind === "tier" ? "TIERED" : "AUTO";
         const editable = item.kind === "risk" || item.kind === "habit";
+        const deletable = editable || item.kind === "tier";
         return (React.createElement("div", { className: "py-2.5 border-b border-[rgba(42,36,25,0.10)] last:border-0" },
             React.createElement("button", { onClick: () => setExpandedItem(expandedItem === item.id ? null : item.id), className: "w-full flex items-center justify-between text-left" },
                 React.createElement("div", { className: "pr-2" },
@@ -1212,7 +1218,7 @@ function App() {
                 item.fastingAuto && (React.createElement("div", null,
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Fasting Days"),
                     React.createElement(Seg, { value: data.settings.fastLunarOnly ? "lunar" : "both", allowClear: false, onChange: (v) => v && setSetting("fastLunarOnly", v === "lunar"), options: [{ v: "both", label: "Mon/Thu + Lunar" }, { v: "lunar", label: "Lunar Only" }] }))),
-                editable && (React.createElement("button", { onClick: () => { deleteItem(item.id); setExpandedItem(null); }, className: "text-xs text-rose-400 flex items-center gap-1 uppercase tracking-wide" },
+                deletable && (React.createElement("button", { onClick: () => { deleteItem(item.id); setExpandedItem(null); }, className: "text-xs text-rose-400 flex items-center gap-1 uppercase tracking-wide" },
                     React.createElement(Trash2, { size: 13 }),
                     " Remove Item"))))));
     };
@@ -1304,12 +1310,12 @@ function App() {
                 React.createElement(SectionLabel, null, "Risk Factors Today"),
                 React.createElement(TileGrid, null, prevRisks.map((it) => (React.createElement(Tile, { key: it.id, mode: "risk", label: it.label, value: today.checks[it.id] === undefined ? null : today.checks[it.id], onChange: (v) => setCheck(it.id, v) })))),
                 React.createElement(Rows, null,
-                    React.createElement("div", { className: "pt-5 pb-4" },
-                        React.createElement("div", { className: "text-[13.5px] text-[#4a4335] tracking-[0.02em] mb-2.5" }, "Content Access Today"),
-                        React.createElement(Seg, { value: today.access, onChange: (v) => setDay("access", v), options: [{ v: "low", label: "Low", tone: "teal" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }] })),
-                    React.createElement("div", { className: "py-4" },
-                        React.createElement("div", { className: "text-[13.5px] text-[#4a4335] tracking-[0.02em] mb-2.5" }, "Checking Out Women"),
-                        React.createElement(Seg, { value: today.checkout, onChange: (v) => setDay("checkout", v), options: [{ v: "none", label: "None", tone: "teal" }, { v: "few", label: "A Few", tone: "warn" }, { v: "lot", label: "A Lot", tone: "risk" }] }))),
+                    (() => { const it = items.find((i) => i.id === "contentAccess"); return it && React.createElement("div", { className: "pt-5 pb-4" },
+                        React.createElement("div", { className: "text-[13.5px] text-[#4a4335] tracking-[0.02em] mb-2.5" }, it.label + " Today"),
+                        React.createElement(Seg, { value: today.access, onChange: (v) => setDay("access", v), options: [{ v: "low", label: "Low", tone: "teal" }, { v: "med", label: "Med", tone: "warn" }, { v: "high", label: "High", tone: "risk" }] })); })(),
+                    (() => { const it = items.find((i) => i.id === "checkout"); return it && React.createElement("div", { className: "py-4" },
+                        React.createElement("div", { className: "text-[13.5px] text-[#4a4335] tracking-[0.02em] mb-2.5" }, it.label),
+                        React.createElement(Seg, { value: today.checkout, onChange: (v) => setDay("checkout", v), options: [{ v: "none", label: "None", tone: "teal" }, { v: "few", label: "A Few", tone: "warn" }, { v: "lot", label: "A Lot", tone: "risk" }] })); })()),
                 prevHabits.length > 0 && (React.createElement(React.Fragment, null,
                     React.createElement(SectionLabel, null, "Protective Habits"),
                     React.createElement(TileGrid, null, prevHabits.map((it) => (React.createElement(Tile, { key: it.id, mode: "protective", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))))),
