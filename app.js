@@ -584,15 +584,26 @@ function Rows({ children, className = "" }) {
     return React.createElement("div", { className: className }, children);
 }
 function GroupHeader({ icon: Icon, color, children }) {
-    return (React.createElement("div", { className: "flex items-center gap-2.5 mt-10 mb-1" },
+    return (React.createElement("div", { className: "flex items-center gap-2.5 mt-7 mb-1" },
         React.createElement(Icon, { size: 17, style: { color, opacity: 0.8 } }),
         React.createElement("div", { className: "font-serif text-[15px] tracking-[0.18em]", style: { color, opacity: 0.95 } }, children)));
 }
+function EvChip({ ev }) {
+    const map = {
+        strong: ["Strong", "rgba(92,138,60,0.16)", "#456a2c"],
+        moderate: ["Moderate", "rgba(194,112,30,0.16)", "#8f5312"],
+        weak: ["Weak", "rgba(182,47,43,0.14)", "#8f2320"],
+    };
+    const m = map[ev];
+    if (!m)
+        return null;
+    return React.createElement("span", { className: "text-[8px] uppercase tracking-[0.12em] font-bold px-2 py-[3px] rounded-full whitespace-nowrap", style: { background: m[1], color: m[2] } }, m[0]);
+}
 function SectionLabel({ children }) {
-    return React.createElement("div", { className: "text-[10px] uppercase tracking-[0.22em] mb-1 mt-7", style: { color: "#6a6358" } }, children);
+    return React.createElement("div", { className: "text-[10px] uppercase tracking-[0.22em] mb-1 mt-4", style: { color: "#6a6358" } }, children);
 }
 function Seg({ value, options, onChange, allowClear = true }) {
-    return (React.createElement("div", { className: "flex gap-1.5" }, options.map((o) => {
+    return (React.createElement("div", { className: "flex flex-wrap gap-1.5" }, options.map((o) => {
         const active = value === o.v;
         const tone = o.tone || "neutral";
         let style = { border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "#6a6358" };
@@ -690,36 +701,6 @@ function ShieldRisk({ risk, size = 68 }) {
             React.createElement("path", { d: "M50 10 L84 21 C84 50, 75 76, 50 92 C25 76, 16 50, 16 21 Z", fill: "none", stroke: "#3a2f22", strokeWidth: "2" })),
         React.createElement("div", { className: "text-[10px] uppercase tracking-widest text-[#8a8172] mt-1 font-semibold" }, "Risk \u00B7 ", Math.round(risk))));
 }
-const FRUIT_BODY_D = "M46 24 C40 30, 38 40, 39 50 C40 60, 34 64, 33 72 C32 82, 40 89, 50 90 C60 89, 68 82, 67 72 C66 63, 61 59, 60 50 C59 40, 58 30, 54 24 C51 22, 48 22, 46 24 Z";
-function VigourFruit({ pct, size = 68 }) {
-    const v = Math.max(0, Math.min(100, pct));
-    const t = v / 100;
-    const rot = 46 * (1 - t);
-    const sx = 0.84 + 0.16 * t;
-    const sy = 0.92 + 0.08 * t;
-    const throbbing = v >= 90;
-    return (React.createElement("div", { className: "flex flex-col items-center" },
-        React.createElement("div", { style: { position: "relative", width: size, height: size } },
-            React.createElement("div", { style: { position: "absolute", inset: 0, transformOrigin: "50% 88%", transform: `rotate(${rot}deg)`, transition: "transform 0.6s" } },
-                React.createElement("div", { className: throbbing ? "bull-fruit-throb" : "", style: throbbing ? undefined : { transform: `scale(${sx},${sy})`, transition: "transform 0.6s" } },
-                    React.createElement("svg", { width: size, height: size, viewBox: "0 0 100 100" },
-                        React.createElement("defs", null,
-                            React.createElement("linearGradient", { id: `vFruitGrad${size}`, x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
-                                React.createElement("stop", { offset: "0%", stopColor: "#f5cf7e" }),
-                                React.createElement("stop", { offset: "100%", stopColor: "#c8912e" }))),
-                        React.createElement("g", { transform: "translate(50 50) scale(0.76) translate(-49.54 -53.5)" },
-                            React.createElement("path", { fill: `url(#vFruitGrad${size})`, d: FRUIT_BODY_D }),
-                            React.createElement("path", { fill: "#f5cf7e", opacity: 0.12 + 0.4 * Math.max(0, t - 0.5), d: FRUIT_BODY_D, style: { transition: "opacity 0.6s" } }),
-                            React.createElement("path", { fill: "#8a6218", d: "M36 26 L42 16 L47 22 L50 10 L54 21 L61 17 L58 27 C52 31, 43 31, 36 26 Z" }),
-                            React.createElement("path", { fill: "#8a6218", d: "M49 12 C49 8, 51 5, 54 3 L57 6 C54 8, 53 11, 53 14 Z" }),
-                            React.createElement("g", { fill: "none", strokeLinecap: "round", opacity: 0.35 + 0.65 * t, style: { transition: "opacity 0.6s" } },
-                                React.createElement("path", { stroke: "#8a6218", strokeWidth: "3.4", d: "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26" }),
-                                React.createElement("path", { stroke: "#8a6218", strokeWidth: "2.8", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
-                                React.createElement("path", { stroke: "#8a6218", strokeWidth: "2", d: "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38" })),
-                            React.createElement("ellipse", { cx: 60, cy: 66, rx: 3.2, ry: 6.5, fill: "#f7e2ae", opacity: 0.85, transform: "rotate(18 60 66)" })))))),
-        React.createElement("div", { className: "text-[10px] uppercase tracking-widest text-[#8a8172] mt-1 font-semibold" }, "Vigour \u00B7 ", Math.round(v))));
-}
-/* ---------- splash screen ---------- */
 const SPLASH_CSS = `
 .bull-splash{position:relative;width:100%;max-width:430px;height:100dvh;margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:#faf6ef;font-family:'JetBrains Mono',monospace;}
 .bull-splash .glow{position:absolute;inset:-20%;background:radial-gradient(circle at 50% 42%,#f5e6c4 0%,#faf6ef 62%);opacity:0;transition:opacity 1.4s ease;}
@@ -737,15 +718,6 @@ const SPLASH_CSS = `
 .bull-splash.on .shockwave{animation:bsShock .7s ease-out 2.95s;}
 @keyframes bsShock{0%{opacity:0;transform:scale(.96);}18%{opacity:.55;}100%{opacity:0;transform:scale(1.12);}}
 .bull-splash .riser,.bull-splash .grow,.bull-splash .beat{position:absolute;inset:0;}
-.bull-splash .bendlower,.bull-splash .bendupper{position:absolute;inset:0;}
-.bull-splash .bendlower{-webkit-clip-path:inset(55% 0 0 0);clip-path:inset(55% 0 0 0);}
-.bull-splash .bendupper{-webkit-clip-path:inset(0 0 44% 0);clip-path:inset(0 0 44% 0);}
-.bull-splash .bend{transform-origin:50% 56%;transform:rotate(-32deg);}
-.bull-splash.on .bend{animation:bsUnbend 4.4s forwards;}
-@keyframes bsUnbend{0%{transform:rotate(-32deg);animation-timing-function:ease-in-out;}18%{transform:rotate(-31deg);animation-timing-function:ease-in-out;}26%{transform:rotate(-26deg);animation-timing-function:ease-in-out;}34%{transform:rotate(-29deg);animation-timing-function:ease-in-out;}42%{transform:rotate(-21deg);animation-timing-function:cubic-bezier(.45,0,.15,1);}62%{transform:rotate(2.5deg);animation-timing-function:ease-in-out;}72%{transform:rotate(-1.5deg);animation-timing-function:ease-in-out;}80%{transform:rotate(0.6deg);animation-timing-function:ease-in-out;}87%{transform:rotate(0deg);}100%{transform:rotate(0deg);}}
-.bull-splash .riser{transform-origin:50.3% 77.7%;transform:rotate(28deg);}
-.bull-splash.on .riser{animation:bsRise 4.4s forwards;}
-@keyframes bsRise{0%{transform:rotate(34deg);animation-timing-function:ease;}18%{transform:rotate(34deg);animation-timing-function:ease-in-out;}26%{transform:rotate(31deg);animation-timing-function:ease-in-out;}34%{transform:rotate(33deg);animation-timing-function:ease-in-out;}42%{transform:rotate(28deg);animation-timing-function:cubic-bezier(.45,0,.15,1);}62%{transform:rotate(-4deg);animation-timing-function:ease-in-out;}72%{transform:rotate(2deg);animation-timing-function:ease-in-out;}80%{transform:rotate(-0.8deg);animation-timing-function:ease-in-out;}87%{transform:rotate(0deg);}100%{transform:rotate(0deg);}}
 .bull-splash .grow{opacity:0;transform:scale(.88,.94);}
 .bull-splash.on .grow{animation:bsEngorge 4.4s forwards;}
 @keyframes bsEngorge{0%{opacity:0;transform:scale(.88,.94);}10%{opacity:1;transform:scale(.88,.94);}28%{transform:scale(.90,.945);}34%{transform:scale(.945,.955);}46%{transform:scale(.93,.95);}52%{transform:scale(1.0,.98);}62%{transform:scale(1.05,1.03);}78%{transform:scale(.995,.998);}88%{transform:scale(1,1);}100%{opacity:1;transform:scale(1,1);}}
@@ -787,8 +759,6 @@ const SPLASH_CSS = `
 .bull-splash.on .hype{opacity:1;}
 @media (prefers-reduced-motion: reduce){
   .bull-splash *{animation:none !important;transition:none !important;}
-  .bull-splash .riser{transform:rotate(0deg) !important;}
-  .bull-splash .bend{transform:rotate(0deg) !important;}
   .bull-splash .grow{opacity:1 !important;transform:scale(1,1) !important;}
   .bull-splash .beat{transform:scale(1,1) !important;}
   .bull-splash .glow,.bull-splash .word,.bull-splash .line,.bull-splash .stats,.bull-splash .hype{opacity:1 !important;transform:none !important;}
@@ -799,7 +769,60 @@ const SPLASH_LINES = [
     "No one is coming. Show up anyway.",
     "The bull doesn't ask if it feels like charging",
 ];
-function SplashFruit({ sfx }) {
+/* ---------- arc bend ----------
+   Rotates every point of a path about a pivot by an angle proportional to how far
+   ABOVE the pivot it sits, so the outline deforms as one connected piece and can
+   never split (the old clip-and-rotate is what cracked). Pass refY to rotate a path
+   RIGIDLY instead — used for the stem, which otherwise smears into a long streak
+   because it sits furthest from the pivot and gets the biggest angle spread. */
+const BEND_PIVOT = { x: 50, y: 74 };
+const BEND_SPAN = 64;
+const _tokCache = {};
+function _tokens(d) {
+    if (!_tokCache[d])
+        _tokCache[d] = d.match(/[MLCZ]|-?\d+\.?\d*/g) || [];
+    return _tokCache[d];
+}
+function bendPath(d, deg, refY, fat) {
+    const toks = _tokens(d), out = [];
+    const f = fat === undefined ? 1 : fat;
+    const rad = (deg * Math.PI) / 180;
+    const N = { M: 1, L: 1, C: 3 };
+    let i = 0;
+    while (i < toks.length) {
+        const t = toks[i];
+        if (N[t]) {
+            out.push(t);
+            i++;
+            for (let n = 0; n < N[t]; n++) {
+                const x0 = parseFloat(toks[i]), y = parseFloat(toks[i + 1]);
+                i += 2;
+                /* widen about the centreline first — pre-bend the axis is vertical, so
+                   this thickens the girth rather than stretching the length */
+                const x = BEND_PIVOT.x + (x0 - BEND_PIVOT.x) * f;
+                const h = Math.max(0, BEND_PIVOT.y - (refY === undefined ? y : refY));
+                const th = rad * (h / BEND_SPAN);
+                const dx = x - BEND_PIVOT.x, dy = y - BEND_PIVOT.y;
+                const c = Math.cos(th), s = Math.sin(th);
+                out.push((BEND_PIVOT.x + dx * c - dy * s).toFixed(2) + " " + (BEND_PIVOT.y + dx * s + dy * c).toFixed(2));
+            }
+        }
+        else if (t === "Z") { out.push("Z"); i++; }
+        else i++;
+    }
+    return out.join(" ");
+}
+/* Rest angle is deliberately non-zero: erect isn't a straight rod, so the final
+   state keeps a slight curve and throbs around it rather than snapping to 0. */
+const BEND_LIMP = 142;
+/* negative = anticlockwise: the resting curve leans back toward the body, not forward */
+const BEND_REST = -13;
+const BEND_THROB = 5;
+/* fully limp is this much thicker across the girth, tapering off as it fills */
+const BEND_FAT = 0.24;
+const STEM_REF_Y = 26;
+const FRUIT_BODY_D = "M46 24 C40 30, 38 40, 39 50 C40 60, 34 64, 33 72 C32 82, 40 89, 50 90 C60 89, 68 82, 67 72 C66 63, 61 59, 60 50 C59 40, 58 30, 54 24 C51 22, 48 22, 46 24 Z";
+function SplashFruit({ sfx, reg }) {
     return (React.createElement("svg", { viewBox: "0 0 100 100" },
                                 React.createElement("defs", null,
                                     React.createElement("linearGradient", { id: "bsGoldGradF" + sfx, x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
@@ -808,25 +831,25 @@ function SplashFruit({ sfx }) {
                                     /* veins are clipped to the body: a vessel sits under the surface,
                                        it doesn't leave the shape and stop in mid-air */
                                     React.createElement("clipPath", { id: "bsBodyClip" + sfx },
-                                        React.createElement("path", { d: FRUIT_BODY_D }))),
-                                React.createElement("g", { transform: "translate(50 50) scale(0.76) translate(-49.54 -53.5)" },
-                                    React.createElement("path", { fill: `url(#bsGoldGradF${sfx})`, d: FRUIT_BODY_D }),
-                                    React.createElement("path", { className: "flush-intro", fill: "#f5cf7e", d: FRUIT_BODY_D }),
-                                    React.createElement("path", { className: "flush-beat", fill: "#f5cf7e", d: FRUIT_BODY_D }),
-                                    React.createElement("path", { fill: "#8a6218", d: "M36 26 L42 16 L47 22 L50 10 L54 21 L61 17 L58 27 C52 31, 43 31, 36 26 Z" }),
-                                    React.createElement("path", { fill: "#8a6218", d: "M49 12 C49 8, 51 5, 54 3 L57 6 C54 8, 53 11, 53 14 Z" }),
+                                        React.createElement("path", { ref: (e) => reg(e, FRUIT_BODY_D), d: FRUIT_BODY_D }))),
+                                React.createElement("g", { transform: "translate(50 54) scale(0.50) translate(-49.54 -53.5)" },
+                                    React.createElement("path", { ref: (e) => reg(e, FRUIT_BODY_D), fill: `url(#bsGoldGradF${sfx})`, d: FRUIT_BODY_D }),
+                                    React.createElement("path", { ref: (e) => reg(e, FRUIT_BODY_D), className: "flush-intro", fill: "#f5cf7e", d: FRUIT_BODY_D }),
+                                    React.createElement("path", { ref: (e) => reg(e, FRUIT_BODY_D), className: "flush-beat", fill: "#f5cf7e", d: FRUIT_BODY_D }),
+                                    React.createElement("path", { ref: (e) => reg(e, "M36 26 L42 16 L47 22 L50 10 L54 21 L61 17 L58 27 C52 31, 43 31, 36 26 Z", STEM_REF_Y), fill: "#8a6218", d: "M36 26 L42 16 L47 22 L50 10 L54 21 L61 17 L58 27 C52 31, 43 31, 36 26 Z" }),
+                                    React.createElement("path", { ref: (e) => reg(e, "M49 12 C49 8, 51 5, 54 3 L57 6 C54 8, 53 11, 53 14 Z", STEM_REF_Y), fill: "#8a6218", d: "M49 12 C49 8, 51 5, 54 3 L57 6 C54 8, 53 11, 53 14 Z" }),
                                     React.createElement("g", { clipPath: `url(#bsBodyClip${sfx})` },
                                     React.createElement("g", { fill: "none", strokeLinecap: "round" },
-                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "3.8", opacity: "0.9", d: "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26" }),
-                                        React.createElement("path", { stroke: "#f5cf7e", strokeWidth: "1.2", opacity: "0.35", transform: "translate(-0.5,-0.5)", d: "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26" }),
-                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "2.6", opacity: "0.9", d: "M47 59 C52 56, 56 52, 58 46" }),
-                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "1.7", opacity: "0.85", d: "M58 46 C60 43, 60 39, 59 36" }),
-                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "2.6", opacity: "0.9", d: "M47 70 C53 68, 58 65, 62 60" }),
-                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "3.2", opacity: "0.9", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
-                                        React.createElement("path", { stroke: "#f5cf7e", strokeWidth: "1.1", opacity: "0.3", transform: "translate(-0.5,-0.5)", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
-                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "1.9", opacity: "0.85", d: "M63 62 C66 58, 67 54, 66 50" }),
-                                        React.createElement("path", { stroke: "#8a6218", strokeWidth: "2.2", opacity: "0.9", d: "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38" }),
-                                        React.createElement("path", { stroke: "#f5cf7e", strokeWidth: "0.9", opacity: "0.3", transform: "translate(-0.5,-0.5)", d: "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38" })),
+                                        React.createElement("path", { ref: (e) => reg(e, "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26", undefined, true), stroke: "#8a6218", strokeWidth: "3.8", opacity: "0.9", d: "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26" }),
+                                        React.createElement("path", { ref: (e) => reg(e, "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26", undefined, true), stroke: "#f5cf7e", strokeWidth: "1.2", opacity: "0.35", transform: "translate(-0.5,-0.5)", d: "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26" }),
+                                        React.createElement("path", { ref: (e) => reg(e, "M47 59 C52 56, 56 52, 58 46", undefined, true), stroke: "#8a6218", strokeWidth: "2.6", opacity: "0.9", d: "M47 59 C52 56, 56 52, 58 46" }),
+                                        React.createElement("path", { ref: (e) => reg(e, "M58 46 C60 43, 60 39, 59 36", undefined, true), stroke: "#8a6218", strokeWidth: "1.7", opacity: "0.85", d: "M58 46 C60 43, 60 39, 59 36" }),
+                                        React.createElement("path", { ref: (e) => reg(e, "M47 70 C53 68, 58 65, 62 60", undefined, true), stroke: "#8a6218", strokeWidth: "2.6", opacity: "0.9", d: "M47 70 C53 68, 58 65, 62 60" }),
+                                        React.createElement("path", { ref: (e) => reg(e, "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28", undefined, true), stroke: "#8a6218", strokeWidth: "3.2", opacity: "0.9", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
+                                        React.createElement("path", { ref: (e) => reg(e, "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28", undefined, true), stroke: "#f5cf7e", strokeWidth: "1.1", opacity: "0.3", transform: "translate(-0.5,-0.5)", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
+                                        React.createElement("path", { ref: (e) => reg(e, "M63 62 C66 58, 67 54, 66 50", undefined, true), stroke: "#8a6218", strokeWidth: "1.9", opacity: "0.85", d: "M63 62 C66 58, 67 54, 66 50" }),
+                                        React.createElement("path", { ref: (e) => reg(e, "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38", undefined, true), stroke: "#8a6218", strokeWidth: "2.2", opacity: "0.9", d: "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38" }),
+                                        React.createElement("path", { ref: (e) => reg(e, "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38", undefined, true), stroke: "#f5cf7e", strokeWidth: "0.9", opacity: "0.3", transform: "translate(-0.5,-0.5)", d: "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38" })),
                                     React.createElement("g", null,
                                         React.createElement("path", { className: "vp d1", pathLength: "100", strokeWidth: "4.0", d: "M48 86 C43 78, 44 68, 47 60 C50 52, 44 46, 44 38 C44 33, 46 29, 48 26" }),
                                         React.createElement("path", { className: "vp d2", pathLength: "100", strokeWidth: "3.4", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
@@ -846,6 +869,38 @@ function Splash({ vigour, risk, cleanPct, streak, onDone }) {
     const [on, setOn] = useState(false);
     const [exiting, setExiting] = useState(false);
     const exitRef = useRef(false);
+    /* The outline is bent per frame directly on the DOM nodes rather than through
+       React state — re-rendering the whole splash at 60fps to move a path would be
+       wasteful and janky. */
+    const partsRef = useRef([]);
+    const reg = (el, d, refY, isVein) => {
+        if (el && !partsRef.current.some((p) => p.el === el))
+            partsRef.current.push({ el, d, refY, isVein });
+    };
+    useEffect(() => {
+        let raf = 0;
+        const t0 = performance.now();
+        const RISE = 4400;
+        const ease = (p) => 1 - Math.pow(1 - p, 3);
+        const tick = (now) => {
+            const dt = now - t0;
+            const deg = dt < RISE
+                ? BEND_LIMP + (BEND_REST - BEND_LIMP) * ease(dt / RISE)
+                /* settled: each beat pulls it briefly straighter, in step with the heartbeat */
+                : BEND_REST + BEND_THROB * 0.5 * (1 - Math.cos(((dt - RISE) / 2400) * Math.PI * 2));
+            const erect = Math.max(0, Math.min(1, (BEND_LIMP - deg) / (BEND_LIMP - BEND_REST)));
+            const fat = 1 + BEND_FAT * (1 - erect);
+            partsRef.current.forEach((p) => {
+                p.el.setAttribute("d", bendPath(p.d, deg, p.refY, fat));
+                /* veins barely read when limp, swelling in as blood arrives */
+                if (p.isVein)
+                    p.el.style.opacity = String(0.05 + 0.85 * erect * erect);
+            });
+            raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, []);
     const finish = () => {
         if (exitRef.current)
             return;
@@ -894,11 +949,7 @@ function Splash({ vigour, risk, cleanPct, streak, onDone }) {
                 React.createElement("div", { className: "riser" },
                     React.createElement("div", { className: "grow" },
                         React.createElement("div", { className: "beat" },
-                            /* the shape is drawn twice and clipped at the shaft/bulb line: the bulb half
-                               stays put while the shaft half hinges on that line, so it genuinely bends
-                               rather than tilting as one rigid piece */
-                            React.createElement("div", { className: "bendlower" }, React.createElement(SplashFruit, { sfx: "a" })),
-                            React.createElement("div", { className: "bendupper bend" }, React.createElement(SplashFruit, { sfx: "b" })))))),
+                            React.createElement(SplashFruit, { sfx: "a", reg: reg }))))),
             React.createElement("div", { className: "word" }, "Bull"),
             React.createElement("div", { className: "stats" },
                 React.createElement("div", { className: "stat" }, React.createElement("div", { className: "num" }, vigDisp), React.createElement("div", { className: "lbl" }, "Vigour \u00B7 30d")),
@@ -962,49 +1013,82 @@ function Breathe({ purposeText, onClose }) {
 /* ---------- guide ---------- */
 const GUIDE = [
     { g: "In The Moment", items: [
-            { t: "The Urge Protocol", b: "Tap Urge the moment it hits \u2014 the tap alone is a logged win. Purpose card, then three minutes of physiological sighs. Urges rise and fall in minutes if they aren't fed. Still loud after? Change environment: leave the room, leave the house." },
-            { t: "Physiological Sigh", b: "Two inhales through the nose \u2014 one full, one short sip on top \u2014 then a long slow exhale through the mouth, roughly twice the inhale. The double inhale reopens collapsed alveoli and offloads CO2 quickly. The most reliably evidenced way to drop arousal in real time; longer exhales than inhales shift you toward parasympathetic tone." },
-            { t: "After A Slip", b: "The slip doesn't cause the binge \u2014 the thought \u201calready ruined\u201d does. That's the abstinence violation effect, one of the best-replicated findings in relapse research. Protocol: log it honestly, water, shower, get outside, tell your accountability partner. One data point. The percentage barely moves." },
+            { t: "The Urge Protocol", ev: "strong", lead: "Urges peak and fall within minutes if they aren't fed. The tap itself is the win.",
+                rows: [["Do", "Tap Urge the moment it hits. Purpose card, then three minutes of physiological sighs."], ["Then", "If it's still loud, change environment — leave the room, leave the house."], ["Why", "Riding out an urge without acting weakens the loop each time. Acting on it strengthens it."]] },
+            { t: "Physiological Sigh", ev: "strong", lead: "The fastest evidenced way to drop arousal in real time.",
+                rows: [["Do", "Two nasal inhales \u2014 one full, one short sip on top \u2014 then a long slow mouth exhale, roughly twice the inhale."], ["Why", "The double inhale reopens collapsed alveoli and offloads CO2 fast. Exhales longer than inhales shift you toward parasympathetic tone."], ["Reps", "Three minutes is enough. Longer isn't better."]] },
+            { t: "After A Slip", ev: "strong", lead: "The slip doesn't cause the binge. The thought \u201calready ruined\u201d does.",
+                rows: [["Why", "The abstinence violation effect is one of the best-replicated findings in relapse research \u2014 the spiral comes from the interpretation, not the act."], ["Do", "Log it honestly. Water, shower, get outside, tell your accountability partner."], ["Avoid", "Recalculating the damage. One data point barely moves the percentage."]] },
         ] },
     { g: "Prevention", items: [
-            { t: "Content Access", b: "The single strongest lever here, and the one with the least ambiguity: opportunity predicts behaviour better than motivation does. Logged as Low / Medium / High rather than yes-no because access is a gradient \u2014 a filtered phone is different from an unfiltered one on the sofa at midnight." },
-            { t: "Checking Out Women", b: "Tracked because repeated deliberate looking keeps the arousal loop primed through the day rather than settling it. Treat it as an honest count, not a moral score \u2014 its value is in what Patterns does with it." },
-            { t: "Home Alone, Unstructured Time", b: "Situational, not moral. Unstructured solitude is the most commonly reported precondition for relapse across self-report studies. Logging it lets Patterns test whether that's true for you specifically, rather than assuming it." },
-            { t: "Junk Food", b: "Scores on both lists. On Prevention: blood-sugar swings degrade impulse control, which is the mechanism that matters for relapse. On Vigour: diet quality tracks erectile function in large cohort studies \u2014 Mediterranean-pattern eating is associated with better erectile scores, largely via endothelial health. Weaker as a vigour lever than training or sleep, which is why it carries a lighter weight there." },
-            { t: "Cold Plunge", b: "Scores on both. Honest framing: cold exposure does not raise testosterone \u2014 that claim is not supported. What it does do is produce a large sustained noradrenaline rise, which lifts mood and alertness for hours, and it's a genuine voluntary-discomfort rep. Both are real reasons to keep it; neither is hormonal." },
-            { t: "Nasal Rinse", b: "Scores on both. On Prevention: a clear airway means better sleep, and poor sleep is one of your strongest documented vulnerability drivers. On Vigour: the paranasal sinuses are the body's main reservoir of nitric oxide, and nasal breathing draws it into the airway \u2014 the same molecule that drives vasodilation. Never rinse with untreated tap water." },
-            { t: "Morning Intention", b: "One concrete purposeful thing, set before the day starts. Implementation intentions \u2014 deciding in advance what you'll do and when \u2014 are among the most robustly replicated behaviour-change findings there are. The specificity is what does the work, not the sentiment." },
-            { t: "Evening Review \u2014 Purpose", b: "A 1\u20135 rating of how meaningful the day felt, scored in both directions: low-purpose days raise Risk, high-purpose days lower it. Meaninglessness and boredom are consistently reported antecedents to compulsive use. Rate it fast and honestly; a considered rating is usually a rationalised one." },
-            { t: "Accountability Check-In", b: "Booked and dated, not vague. Risk rises when nothing is booked, when a check-in is overdue, or when the next one is beyond your chosen window \u2014 because accountability decays with distance. Set the frequency in Settings." },
-            { t: "Urges Survived", b: "Protective, and the only item that rewards difficulty. Each logged urge you ride out lowers Risk, up to a daily cap. A day with three survived urges is a stronger day than one with none, and the score is built to say so." },
-            { t: "Recovery Below 40%", b: "Automatic, from your Recovery Score. Low recovery means depleted self-regulation \u2014 the same resource that declines urges. This is the input most worth automating: it needs no judgement from you, only data." },
-            { t: "Sick / Travelling Flags", b: "Two independent day flags. Both count as risk in their own right \u2014 disrupted routine and unfamiliar environments are real triggers \u2014 while items you've marked Excused sit out those days entirely, so you're not penalised twice for the same disruption." },
+            { t: "Content Access", ev: "strong", lead: "The strongest lever here, and the least ambiguous.",
+                rows: [["Why", "Opportunity predicts behaviour better than motivation does."], ["Logged", "Low / Medium / High rather than yes-no \u2014 access is a gradient. A filtered phone is not the same as an unfiltered one on the sofa at midnight."], ["Do", "Reduce access before you need willpower, not while you need it."]] },
+            { t: "Checking Out Women", ev: "moderate", lead: "Repeated deliberate looking keeps the arousal loop primed through the day.",
+                rows: [["Why", "The loop doesn't settle if it's topped up hourly."], ["Logged", "An honest count, not a moral score. Its value is what Patterns does with it."]] },
+            { t: "Home Alone, Unstructured Time", ev: "moderate", lead: "Situational, not moral \u2014 the most commonly reported precondition for relapse.",
+                rows: [["Why", "Across self-report studies, unstructured solitude precedes relapse more often than any mood state."], ["Do", "Log it so Patterns can test whether it's true for you specifically rather than assuming it."]] },
+            { t: "Junk Food", ev: "moderate", lead: "Scores on both lists, for two different reasons.",
+                rows: [["Prevention", "Blood-sugar swings degrade impulse control \u2014 that's the mechanism that matters for relapse."], ["Vigour", "Diet quality tracks erectile function in large cohorts; Mediterranean-pattern eating is associated with better scores, largely via endothelial health."], ["Weight", "Lighter on the Vigour side \u2014 a weaker lever there than training or sleep."]] },
+            { t: "Cold Plunge", ev: "weak", lead: "Real benefits, but not the hormonal one it's usually sold on.",
+                rows: [["Not true", "Cold exposure does not raise testosterone. That claim isn't supported."], ["Does work", "A large sustained noradrenaline rise \u2014 mood and alertness lift for hours."], ["Also", "A genuine voluntary-discomfort rep, which is its own reason to keep it."]] },
+            { t: "Nasal Rinse", ev: "moderate", lead: "Scores on both. Airway on one side, nitric oxide on the other.",
+                rows: [["Prevention", "A clear airway means better sleep, and poor sleep is one of your strongest vulnerability drivers."], ["Vigour", "The paranasal sinuses are the body's main nitric oxide reservoir; nasal breathing draws it into the airway."], ["Safety", "Never rinse with untreated tap water."]] },
+            { t: "Morning Intention", ev: "strong", lead: "One concrete purposeful thing, set before the day starts.",
+                rows: [["Why", "Implementation intentions \u2014 deciding in advance what you'll do and when \u2014 are among the most replicated behaviour-change findings there are."], ["Do", "Be specific. The specificity does the work, not the sentiment."]] },
+            { t: "Evening Review \u2014 Purpose", ev: "moderate", lead: "Rated 1\u20135, and it moves the score in both directions.",
+                rows: [["Why", "Meaninglessness and boredom are consistently reported antecedents to compulsive use."], ["Scoring", "Low-purpose days raise Risk; high-purpose days lower it."], ["Do", "Rate it fast. A considered rating is usually a rationalised one."]] },
+            { t: "Accountability Check-In", ev: "strong", lead: "Booked and dated, not vague.",
+                rows: [["Why", "Accountability decays with distance."], ["Scoring", "Risk rises when nothing is booked, when a check-in is overdue, or when the next is beyond your chosen window."], ["Set", "Frequency is configurable in Settings."]] },
+            { t: "Urges Survived", ev: "strong", lead: "The only item that rewards difficulty.",
+                rows: [["Scoring", "Each logged urge you ride out lowers Risk, up to a daily cap."], ["Why", "A day with three survived urges is a stronger day than one with none, and the score is built to say so."]] },
+            { t: "Recovery Below 40%", ev: "moderate", lead: "Automatic, from your Recovery Score \u2014 no judgement required from you.",
+                rows: [["Why", "Low recovery means depleted self-regulation \u2014 the same resource that declines urges."], ["Note", "The input most worth automating, because it needs only data."]] },
+            { t: "Sick / Travelling Flags", ev: "moderate", lead: "Two independent day flags that count as risk in their own right.",
+                rows: [["Why", "Disrupted routine and unfamiliar environments are real triggers, not excuses."], ["Fairness", "Items you mark Excused sit out flagged days, so you aren't penalised twice for one disruption."]] },
         ] },
     { g: "Vigour \u00B7 Testosterone", items: [
-            { t: "Sleep", b: "The highest-yield item in this bucket by a wide margin. The large majority of daily testosterone release happens during sleep, and it tracks total sleep time closely; restricting healthy young men to five hours a night for one week has been shown to cut daytime testosterone by 10\u201315%. Nothing else in this list moves the number that much." },
-            { t: "Strength Training", b: "Compound, heavy, progressive. Be clear on what the evidence supports: resistance training produces a sharp acute post-session testosterone rise, but the effect on resting baseline testosterone in already-healthy men is modest. The durable wins are body composition, insulin sensitivity and androgen-receptor density \u2014 which is why it's weighted high despite the acute spike being oversold everywhere else." },
-            { t: "Fasting", b: "Mondays, Thursdays and the 13th\u201315th lunar days, auto-flagged. Flagged honestly: the testosterone case is weak and the trial data is mixed \u2014 some time-restricted-eating studies show total testosterone falling, not rising. What fasting reliably delivers is insulin sensitivity, and a repeatable voluntary-discomfort rep with strong personal meaning. Keep it for those reasons rather than a hormonal one." },
+            { t: "Sleep", ev: "strong", lead: "The highest-yield item in this bucket by a wide margin.",
+                rows: [["Why", "The large majority of daily testosterone release happens during sleep, and it tracks total sleep time closely."], ["Evidence", "Restricting healthy young men to five hours a night for one week has been shown to cut daytime testosterone by 10\u201315%."], ["Note", "Nothing else in this list moves the number that much."]] },
+            { t: "Strength Training", ev: "moderate", lead: "Weighted high \u2014 but not for the reason it's usually sold on.",
+                rows: [["Oversold", "The acute post-session testosterone spike is real but its effect on resting baseline in healthy men is modest."], ["Real wins", "Body composition, insulin sensitivity, and androgen-receptor density."], ["Do", "Compound, heavy, progressive."]] },
+            { t: "Fasting", ev: "weak", lead: "Keep it \u2014 but not on hormonal grounds.",
+                rows: [["Not true", "The testosterone case is weak. Some time-restricted-eating trials show total testosterone falling, not rising."], ["Does work", "Insulin sensitivity, plus a repeatable voluntary-discomfort rep with strong personal meaning."], ["Schedule", "Mondays, Thursdays and the 13th\u201315th lunar days \u2014 auto-flagged, and configurable in Settings."]] },
+            { t: "Supplements", ev: "weak", lead: "Grouped here, but scored as one lump rather than per-item.",
+                rows: [["Note", "Evidence varies sharply by compound. Zinc and vitamin D matter mainly if you're deficient \u2014 correcting a deficiency helps, exceeding normal doesn't."], ["Do", "Treat as a minor lever. Nothing here competes with sleep or training."]] },
         ] },
     { g: "Vigour \u00B7 Heart Health", items: [
-            { t: "Cardio / Boxing", b: "The best-evidenced item in the whole app for erectile function. Erectile tissue depends on endothelial health, and aerobic exercise improves endothelial function directly \u2014 meta-analyses of aerobic training show clinically meaningful improvement in erectile scores, with the largest gains in men who start out worst. Erectile difficulty is often the earliest visible sign of vascular disease, which is why this bucket exists at all." },
-            { t: "Junk Food (avoided)", b: "Counted here too. Endothelium is the shared mechanism: the same dietary pattern that predicts cardiovascular risk predicts erectile scores. Lighter weight than training because the effect is slower and less specific." },
-            { t: "Cold Plunge", b: "Counted here for the acute circulatory and mood response, not for hormones. Low weight deliberately \u2014 the evidence supports how it makes you feel and function that day, not a lasting cardiovascular adaptation." },
+            { t: "Cardio / Boxing", ev: "strong", lead: "The best-evidenced item in the whole app for erectile function.",
+                rows: [["Why", "Erectile tissue depends on endothelial health, and aerobic exercise improves endothelial function directly."], ["Evidence", "Meta-analyses of aerobic training show clinically meaningful improvement in erectile scores, with the largest gains in men who start out worst."], ["Bigger picture", "Erectile difficulty is often the earliest visible sign of vascular disease. That's why this bucket exists."]] },
+            { t: "Junk Food (avoided)", ev: "moderate", lead: "Counted here too \u2014 endothelium is the shared mechanism.",
+                rows: [["Why", "The dietary pattern that predicts cardiovascular risk predicts erectile scores."], ["Weight", "Lighter than training: slower and less specific."]] },
+            { t: "Cold Plunge", ev: "weak", lead: "Counted here for the acute response, not a lasting adaptation.",
+                rows: [["Why", "Circulatory and mood effects on the day."], ["Weight", "Low deliberately \u2014 the evidence supports how it makes you feel and function that day, not cardiovascular remodelling."]] },
         ] },
     { g: "Vigour \u00B7 Nitric Oxide", items: [
-            { t: "Why This Bucket Exists", b: "Nitric oxide is the actual signalling molecule behind an erection: it relaxes smooth muscle in the penile arteries and lets blood in. This is the pathway PDE5 inhibitors act on. Everything in this bucket is about producing more of it or losing less of it." },
-            { t: "Breathwork Before Isha", b: "Five minutes diaphragmatic: hand on the belly, nasal inhale so the belly rises, exhale longer than the inhale. Slow breathing at roughly six breaths per minute raises heart-rate variability and shifts autonomic balance toward parasympathetic \u2014 the state erections require. Anchored to Isha because it's fixed and lands near bedtime, ahead of your most vulnerable window." },
-            { t: "Nasal Breathing", b: "The mechanism the whole bucket rests on. Nitric oxide is produced continuously in the paranasal sinuses and drawn into the lungs on every nasal inhale, where it improves oxygen uptake. Mouth breathing bypasses that supply entirely. This is well-established physiology, unlike most of what gets claimed downstream of it." },
+            { t: "Why This Bucket Exists", ev: "strong", lead: "Nitric oxide is the actual signalling molecule behind an erection.",
+                rows: [["Mechanism", "It relaxes smooth muscle in the penile arteries and lets blood in. This is the pathway PDE5 inhibitors act on."], ["So", "Everything in this bucket is about producing more of it, or losing less of it."]] },
+            { t: "Breathwork Before Isha", ev: "moderate", lead: "Five minutes diaphragmatic, anchored to a fixed daily point.",
+                rows: [["Do", "Hand on the belly, nasal inhale so the belly rises, exhale longer than the inhale."], ["Why", "Slow breathing at roughly six breaths per minute raises heart-rate variability and shifts autonomic balance toward parasympathetic \u2014 the state erections require."], ["Timing", "Isha is fixed and lands near bedtime, ahead of your most vulnerable window."]] },
+            { t: "Nasal Breathing", ev: "strong", lead: "The mechanism the whole bucket rests on.",
+                rows: [["Why", "Nitric oxide is produced continuously in the paranasal sinuses and drawn into the lungs on every nasal inhale, where it improves oxygen uptake."], ["Cost of not", "Mouth breathing bypasses that supply entirely."], ["Note", "Well-established physiology \u2014 unlike a lot of what gets claimed downstream of it."]] },
         ] },
     { g: "Vigour \u00B7 Pelvic Floor", items: [
-            { t: "Kegels", b: "The best-supported non-drug intervention for erectile and ejaculatory control. Find the muscle once (the one that stops urine mid-flow \u2014 locate it, don't train there). Each session: ten slow reps, squeezing 3\u20135 seconds and relaxing equally long, progressing toward ten-second holds, plus ten fast one-second flutters. Trial evidence shows pelvic floor training improving erectile rigidity comparably to some first-line approaches. Never train to fatigue." },
-            { t: "Pelvic Floor Stretches", b: "The other half, and the half people skip. A chronically tight floor produces the same symptoms as a weak one, so release is not optional recovery work \u2014 it's half the training. Five to ten minutes: happy baby, deep squat, child's pose, butterfly, nasal breathing, letting the floor soften on each exhale. Equal reverse-kegel work: gentle bearing-down release on a slow exhale, matching your squeeze reps." },
+            { t: "Kegels", ev: "strong", lead: "The best-supported non-drug intervention for erectile and ejaculatory control.",
+                rows: [["Evidence", "Trial evidence shows pelvic floor training improving erectile rigidity comparably to some first-line approaches."], ["Find it", "The muscle that stops urine mid-flow. Locate it once \u2014 don't make that the exercise."], ["Do", "10 slow reps: squeeze 3\u20135s, relax equally long. Build toward 10-second holds. Then 10 fast one-second flutters."], ["Avoid", "Training to fatigue."]] },
+            { t: "Pelvic Floor Stretches", ev: "moderate", lead: "The other half, and the half people skip.",
+                rows: [["Why", "A chronically tight floor produces the same symptoms as a weak one. Release isn't optional recovery work \u2014 it's half the training."], ["Do", "5\u201310 minutes: happy baby, deep squat, child's pose, butterfly. Nasal breathing, letting the floor soften on each exhale."], ["Also", "Reverse kegels \u2014 gentle bearing-down release on a slow exhale, matching your squeeze reps."]] },
         ] },
     { g: "How Scoring Works", items: [
-            { t: "Relapse Risk", b: "Starts near a baseline, rises with active risk factors, falls with protective habits and survived urges. Lower is safer. A logged relapse floors the day at high risk regardless of everything else \u2014 the day is what it is." },
-            { t: "Sexual Vigour", b: "Weighted completion of the actions scheduled for that day, expressed as a percentage of what was available to earn. Items not scheduled today aren't counted against you, so an off day doesn't drag the score." },
-            { t: "Items That Score On Both", b: "Some things genuinely affect both scores \u2014 junk food, cold plunge, nasal rinse. Those carry two independent weights: one for Prevention, one for Vigour. A risk-type dual item earns Vigour by being avoided and raises Risk by happening, each at its own weight. Both are set in Settings." },
-            { t: "Weights", b: "Every item is Low / Med / High / V.High on each side it scores. Defaults are a starting point, not a recommendation \u2014 tune them against what Patterns actually shows for you rather than what should be true in theory." },
-            { t: "Patterns", b: "Compares how often each factor is present on relapse days against how often it's present on all days. It shows association, not causation, and it needs volume before it means much \u2014 correlations from a handful of events are noise. Treat it as a hypothesis generator." },
+            { t: "Relapse Risk", ev: null, lead: "Lower is safer.",
+                rows: [["Rises with", "Active risk factors."], ["Falls with", "Protective habits and survived urges."], ["Override", "A logged relapse floors the day at high risk regardless of everything else. The day is what it is."]] },
+            { t: "Sexual Vigour", ev: null, lead: "Weighted completion of what was actually scheduled that day.",
+                rows: [["Scoring", "Expressed as a percentage of what was available to earn."], ["Fairness", "Items not scheduled today aren't counted against you, so an off day doesn't drag the score."]] },
+            { t: "Items That Score On Both", ev: null, lead: "Some things genuinely affect both scores.",
+                rows: [["Which", "Junk food, cold plunge, nasal rinse."], ["How", "Two independent weights \u2014 one for Prevention, one for Vigour."], ["Risk-type", "Earns Vigour by being avoided, raises Risk by happening, each at its own weight."]] },
+            { t: "Weights", ev: null, lead: "Every item is Low / Med / High / V.High on each side it scores.",
+                rows: [["Note", "Defaults are a starting point, not a recommendation."], ["Do", "Tune them against what Patterns actually shows for you, not what should be true in theory."]] },
+            { t: "Patterns", ev: null, lead: "A hypothesis generator, not a verdict.",
+                rows: [["How", "Compares how often each factor appears on relapse days against how often it appears on all days."], ["Limits", "Association, not causation \u2014 and correlations from a handful of events are noise."], ["Do", "Wait for volume before acting on anything it surfaces."]] },
         ] },
 ];
 /* ---------- main ---------- */
@@ -1312,15 +1396,18 @@ function App() {
         React.createElement("span", { className: "text-[10px] uppercase tracking-wide font-semibold" }, label)));
     const ItemEditorRow = ({ item, side }) => {
         const dual = item.list === "both";
-        const kindLabel = item.kind === "risk" ? "RISK" : item.kind === "habit" ? "PROTECTIVE"
-            : item.kind === "tier" ? "TIERED" : "AUTO";
+        const kindLabel = dual ? "BOTH"
+            : item.kind === "tier" ? "TIERED"
+                : item.kind === "derived" ? "AUTO"
+                    : item.list === "prime" ? "VIGOUR"
+                        : item.kind === "risk" ? "RISK" : "PROTECTIVE";
         const editable = item.kind === "risk" || item.kind === "habit";
         const deletable = editable || item.kind === "tier";
-        return (React.createElement("div", { className: "py-2.5 border-b border-[rgba(42,36,25,0.10)] last:border-0" },
+        return (React.createElement("div", { key: item.id, className: "py-2.5 border-b border-[rgba(42,36,25,0.10)] last:border-0" },
             React.createElement("button", { onClick: () => setExpandedItem(expandedItem === item.id ? null : item.id), className: "w-full flex items-center justify-between text-left" },
                 React.createElement("div", { className: "pr-2" },
                     React.createElement("div", { className: "text-sm text-[#332d20] uppercase tracking-wide font-semibold" }, item.label),
-                    React.createElement("div", { className: "text-xs text-[#8a8172] mt-0.5" }, (dual ? "BOTH" : kindLabel) + " \u00B7 " + wLabel(side === "prime" && dual ? (item.vigourWeight || item.weight) : item.weight) + (editable ? " \u00B7 " + freqSummary(item) : "")),
+                    React.createElement("div", { className: "text-xs text-[#8a8172] mt-0.5" }, kindLabel + " \u00B7 " + wLabel(side === "prime" && dual ? (item.vigourWeight || item.weight) : item.weight) + (editable ? " \u00B7 " + freqSummary(item) : "")),
                     item.sub && item.list !== "prime" && React.createElement("div", { className: "text-xs text-[#9a9285] mt-0.5 normal-case" }, item.sub)),
                 React.createElement(Pencil, { size: 14, className: "text-[#9a9285] shrink-0" })),
             expandedItem === item.id && (React.createElement("div", { className: "mt-3 space-y-3" },
@@ -1417,8 +1504,12 @@ function App() {
                 React.createElement("div", { className: "bull-forceline" }),
                 healthImported && isToday && (React.createElement("div", { className: "mt-3 rounded-xl px-3 py-2 text-[11px] tracking-wide", style: { background: "rgba(201,150,44,0.12)", color: "#8a7333" } },
                     "Imported from Health: " + healthImported.join(", "))),
+                justRelapsed && (React.createElement(Card, { className: "mt-4 border border-[rgba(42,36,25,0.16)]" },
+                    React.createElement("div", { className: "text-sm text-[#4a4335] leading-relaxed" }, "Logged. One slip is one data point \u2014 not a collapse. Water, shower, outside. Fast tomorrow."),
+                    React.createElement("button", { onClick: () => setJustRelapsed(false), className: "mt-2 text-xs text-[#8a8172] uppercase tracking-wide" }, "Dismiss"))),
+                React.createElement(GroupHeader, { icon: Shield, color: TEAL }, "Relapse Prevention"),
                 isToday ? (React.createElement(React.Fragment, null,
-                    React.createElement("button", { onClick: logUrge, className: "bull-urge w-full mt-5 rounded-2xl active:scale-[0.97] transition-transform" },
+                    React.createElement("button", { onClick: logUrge, className: "bull-urge w-full mt-1 rounded-2xl active:scale-[0.97] transition-transform" },
                         React.createElement("span", { className: "bull-urge-sheen" }),
                         React.createElement("span", { className: "bull-urge-inner" },
                             React.createElement("span", { className: "bull-urge-ring" }, React.createElement(Wind, { size: 19 })),
@@ -1429,11 +1520,7 @@ function App() {
                         data.urges.length,
                         " urge",
                         data.urges.length === 1 ? "" : "s",
-                        " survived all-time"))) : (React.createElement("div", { className: "text-center text-xs text-[#9a9285] mt-5 uppercase tracking-wide py-4 border border-dashed border-[rgba(42,36,25,0.10)] rounded-2xl" }, "Urge logging only available on today")),
-                justRelapsed && (React.createElement(Card, { className: "mt-4 border border-[rgba(42,36,25,0.16)]" },
-                    React.createElement("div", { className: "text-sm text-[#4a4335] leading-relaxed" }, "Logged. One slip is one data point \u2014 not a collapse. Water, shower, outside. Fast tomorrow."),
-                    React.createElement("button", { onClick: () => setJustRelapsed(false), className: "mt-2 text-xs text-[#8a8172] uppercase tracking-wide" }, "Dismiss"))),
-                React.createElement(GroupHeader, { icon: Shield, color: TEAL }, "Relapse Prevention"),
+                        " survived all-time"))) : (React.createElement("div", { className: "text-center text-xs text-[#9a9285] mt-1 uppercase tracking-wide py-4 border border-dashed border-[rgba(42,36,25,0.10)] rounded-2xl" }, "Urge logging only available on today")),
                 React.createElement(SectionLabel, null, "Morning Intention"),
                 React.createElement(Card, null, today.intentionSet ? (React.createElement("div", { className: "flex items-start gap-2" },
                     React.createElement(Check, { size: 18, style: { color: TEAL }, className: "mt-0.5 shrink-0" }),
@@ -1490,14 +1577,14 @@ function App() {
                     React.createElement(SectionLabel, null, b.label),
                     React.createElement(TileGrid, null, b.items.map((it) => (it.kind === "risk"
                         ? React.createElement(Tile, { key: it.id, mode: "risk", label: it.label, value: today.checks[it.id], onChange: (v) => setCheck(it.id, v) })
-                        : React.createElement(Tile, { key: it.id, mode: "vigour", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))))),
-                React.createElement(SectionLabel, null, "Supplements"),
-                React.createElement(Card, null,
-                    React.createElement("div", { className: "flex flex-wrap gap-2" }, data.settings.supplements.map((s) => {
-                        const on = !!(today.supplementsTaken && today.supplementsTaken[s]);
-                        return (React.createElement("button", { key: s, onClick: () => setDay("supplementsTaken", { ...today.supplementsTaken, [s]: !on }), className: "px-3 py-1.5 rounded-full text-xs uppercase tracking-wide border transition-colors font-semibold " +
-                                (on ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: on ? { background: AMBER, borderColor: AMBER } : undefined }, s));
-                    }))),
+                        : React.createElement(Tile, { key: it.id, mode: "vigour", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))),
+                    /* supplements sit under Testosterone \u2014 they're scored as one lump, not per-bucket */
+                    b.id === "test" && React.createElement(Card, { className: "mt-2" },
+                        React.createElement("div", { className: "flex flex-wrap gap-2" }, data.settings.supplements.map((s) => {
+                            const on = !!(today.supplementsTaken && today.supplementsTaken[s]);
+                            return (React.createElement("button", { key: s, onClick: () => setDay("supplementsTaken", { ...today.supplementsTaken, [s]: !on }), className: "px-3 py-1.5 rounded-full text-xs uppercase tracking-wide border transition-colors font-semibold " +
+                                    (on ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: on ? { background: AMBER, borderColor: AMBER } : undefined }, s));
+                        }))))),
                 React.createElement(SectionLabel, null, "Sleep"),
                 React.createElement(Card, null,
                     React.createElement(NumField, { label: "Sleep Score", value: today.sleep, onChange: (v) => setDay("sleep", v), suffix: "%" })),
@@ -1590,10 +1677,16 @@ function App() {
                         const key = grp.g + "/" + g.t;
                         const open = openGuide === key;
                         return React.createElement("div", { key: key, className: "border-b border-[rgba(42,36,25,0.09)] last:border-0" },
-                            React.createElement("button", { onClick: () => setOpenGuide(open ? null : key), className: "w-full flex items-center justify-between text-left py-3 gap-3" },
-                                React.createElement("span", { className: "text-[13px] font-semibold uppercase tracking-[0.06em] text-[#332d20] leading-snug" }, g.t),
-                                React.createElement(ChevronDown, { size: 15, className: "text-[#9a9285] shrink-0 transition-transform " + (open ? "rotate-180" : "") })),
-                            open && React.createElement("p", { className: "text-[13px] text-[#6f6757] pb-3.5 pr-6 leading-[1.65]" }, g.b));
+                            React.createElement("button", { onClick: () => setOpenGuide(open ? null : key), className: "w-full flex items-center justify-between text-left py-3 gap-2.5" },
+                                React.createElement("span", { className: "font-serif text-[13px] tracking-[0.05em] text-[#332d20] leading-snug" }, g.t),
+                                React.createElement("span", { className: "flex items-center gap-2 shrink-0" },
+                                    g.ev && React.createElement(EvChip, { ev: g.ev }),
+                                    React.createElement(ChevronDown, { size: 15, className: "text-[#9a9285] transition-transform " + (open ? "rotate-180" : "") }))),
+                            open && React.createElement("div", { className: "pb-3.5" },
+                                React.createElement("div", { className: "text-[13px] font-semibold text-[#3a3327] leading-[1.5] mb-2.5" }, g.lead),
+                                g.rows.map(([k, v], n) => React.createElement("div", { key: n, className: "flex gap-2.5 py-1.5 border-b border-[rgba(42,36,25,0.06)] last:border-0" },
+                                    React.createElement("div", { className: "text-[10px] uppercase tracking-[0.1em] text-[#9a9285] font-bold pt-0.5 shrink-0", style: { flexBasis: 72 } }, k),
+                                    React.createElement("div", { className: "text-[12.5px] text-[#6f6757] leading-[1.6]" }, v)))));
                     })))))),
             view === "settings" && (React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "font-serif text-2xl text-[#2a2419] mb-4" }, "Settings"),
@@ -1602,14 +1695,14 @@ function App() {
                     React.createElement("textarea", { value: data.settings.purposeText, onChange: (e) => setSetting("purposeText", e.target.value), rows: 6, className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#332d20] leading-relaxed" }),
                     React.createElement("div", { className: "text-xs text-[#8a8172] mt-1" }, "Shown when you tap Urge.")),
                 React.createElement(SectionLabel, null, "Prevention Checklist Items"),
-                React.createElement(Card, null, items.filter(isPrev).sort(byWeightDesc).map((it) => React.createElement(ItemEditorRow, { key: it.id, item: it, side: "prev" }))),
+                React.createElement(Card, null, items.filter(isPrev).sort(byWeightDesc).map((it) => ItemEditorRow({ item: it, side: "prev" }))),
                 BUCKETS.map((b) => {
                     const rows = items.filter((i) => isPrime(i) && (i.bucket || "test") === b.id).sort(byWeightDesc);
                     if (!rows.length)
                         return null;
                     return React.createElement(React.Fragment, { key: b.id },
                         React.createElement(SectionLabel, null, "Vigour \u00B7 " + b.label),
-                        React.createElement(Card, null, rows.map((it) => React.createElement(ItemEditorRow, { key: it.id, item: it, side: "prime" }))));
+                        React.createElement(Card, null, rows.map((it) => ItemEditorRow({ item: it, side: "prime" }))));
                 }),
                 React.createElement("div", { className: "mt-3" }, !showAdd ? (React.createElement("button", { onClick: () => setShowAdd(true), className: "w-full py-3 rounded-2xl border border-dashed border-[rgba(42,36,25,0.16)] text-[#6f6757] text-sm flex items-center justify-center gap-1.5 uppercase tracking-wide" },
                     React.createElement(Plus, { size: 16 }),
