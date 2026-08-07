@@ -345,12 +345,12 @@ const DEFAULT_ITEMS = [
     { id: "urgeSurvivalBonus", label: "Urges Survived Today", sub: "Auto — protective, from the Urge button", list: "prev", kind: "derived", weight: "med" },
     { id: "sickFlag", label: "Sick Day", sub: "Auto — from the Sick flag on Today", list: "prev", kind: "derived", weight: "med" },
     { id: "travelFlag", label: "Travelling Day", sub: "Auto — from the Travelling flag on Today", list: "prev", kind: "derived", weight: "high" },
-    { id: "kegels", label: "Kegels", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0], excusable: true  bucket: "pelvic" },
-    { id: "stretches", label: "Pelvic Floor Stretches", list: "prime", kind: "habit", weight: "med", freq: [1, 3, 5, 0], excusable: true  bucket: "pelvic" },
-    { id: "cardio", label: "Cardio / Boxing", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0], excusable: true  bucket: "heart" },
-    { id: "strength", label: "Strength Training", list: "prime", kind: "habit", weight: "med", freq: [2, 6], excusable: true  bucket: "test" },
-    { id: "breathwork", label: "Breathwork Before Isha", list: "prime", kind: "habit", weight: "med", freq: "daily"  bucket: "no" },
-    { id: "fasting", label: "Fasting", list: "prime", kind: "habit", weight: "med", freq: "daily", fastingAuto: true  bucket: "test" },
+    { id: "kegels", label: "Kegels", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0], excusable: true, bucket: "pelvic" },
+    { id: "stretches", label: "Pelvic Floor Stretches", list: "prime", kind: "habit", weight: "med", freq: [1, 3, 5, 0], excusable: true, bucket: "pelvic" },
+    { id: "cardio", label: "Cardio / Boxing", list: "prime", kind: "habit", weight: "high", freq: [1, 3, 5, 0], excusable: true, bucket: "heart" },
+    { id: "strength", label: "Strength Training", list: "prime", kind: "habit", weight: "med", freq: [2, 6], excusable: true, bucket: "test" },
+    { id: "breathwork", label: "Breathwork Before Isha", list: "prime", kind: "habit", weight: "med", freq: "daily", bucket: "no" },
+    { id: "fasting", label: "Fasting", list: "prime", kind: "habit", weight: "med", freq: "daily", fastingAuto: true, bucket: "test" },
 ];
 const DEFAULT_PURPOSE = "I am preparing for her before I have met her. Every clean day is me becoming the man and husband I intend to be on day one — clear-eyed, disciplined, present.\n\nThis urge is a wave. It rises, it peaks, it passes. I do not act on it. I am building something better.";
 const DEFAULT_SETTINGS = {
@@ -445,9 +445,12 @@ function migrate(old) {
     /* items retired on scientific grounds — drop them from saved data too */
     const RETIRED_IDS = ["mouthtape", "caffeine"];
     base.items = base.items.filter((i) => !RETIRED_IDS.includes(i.id));
-    /* fasting moved from a lunar-only boolean to a three-way mode */
-    if (base.settings && base.settings.fastMode === undefined)
+    /* fasting moved from a lunar-only boolean to a three-way mode. Keyed off the OLD
+       flag, not off fastMode — the defaults line above already gave fastMode a value. */
+    if (base.settings && base.settings.fastLunarOnly !== undefined) {
         base.settings.fastMode = base.settings.fastLunarOnly ? "lunar" : "both";
+        delete base.settings.fastLunarOnly;
+    }
     /* backfill bucket + dual-list scoring onto saved items that predate the buckets */
     base.items = base.items.map((i) => {
         const def = DEFAULT_ITEMS.find((x) => x.id === i.id);
@@ -837,7 +840,7 @@ function SplashFruit({ sfx }) {
                                         React.createElement("path", { className: "vc c2", pathLength: "100", strokeWidth: "3.0", d: "M58 84 C63 77, 65 69, 63 61 C61 54, 58 49, 58 42 C58 37, 59 32, 61 28" }),
                                         React.createElement("path", { className: "vc c3", pathLength: "100", strokeWidth: "2.2", d: "M39 74 C37 66, 37 57, 40 50 C41 46, 40 42, 39 38" }))),
                                     React.createElement("ellipse", { cx: 60, cy: 66, rx: 3.2, ry: 6.5, fill: "#f7e2ae", opacity: 0.9, transform: "rotate(18 60 66)" }),
-                                    React.createElement("ellipse", { cx: 43, cy: 44, rx: 1.6, ry: 3.8, fill: "#f7e2ae", opacity: 0.25, transform: "rotate(-10 43 44)" }))))))),));
+                                    React.createElement("ellipse", { cx: 43, cy: 44, rx: 1.6, ry: 3.8, fill: "#f7e2ae", opacity: 0.25, transform: "rotate(-10 43 44)" }))));
 }
 function Splash({ vigour, risk, cleanPct, streak, onDone }) {
     const [on, setOn] = useState(false);
@@ -1233,8 +1236,6 @@ function App() {
     };
     const bestStreak = (() => {
         const relapseTs = data.relapses.map((r) => r.ts);
-        if (manualStart)
-            relapseTs.push(manualStart);
         const pts = [data.firstUse, ...relapseTs.sort((a, b) => a - b), Date.now()];
         let best = 0;
         for (let i = 1; i < pts.length; i++)
