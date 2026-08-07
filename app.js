@@ -216,7 +216,11 @@ function riskTileColor(r) {
     const x = Math.max(0, Math.min(100, r));
     return x <= 50 ? mixHex("#5c8a3c", "#c2701e", x / 50) : mixHex("#c2701e", "#b62f2b", (x - 50) / 50);
 }
-function MonthView({ data, items, onPick, onClose }) {
+function vigourTileColor(v) {
+    const x = Math.max(0, Math.min(100, v));
+    return x <= 50 ? mixHex("#e7dcc4", "#c9962c", x / 50) : mixHex("#c9962c", "#8a6318", (x - 50) / 50);
+}
+function MonthView({ data, items, settings, onPick, onClose }) {
     const [mOff, setMOff] = useState(0);
     const now = new Date();
     const base = new Date(now.getFullYear(), now.getMonth() + mOff, 1);
@@ -242,6 +246,9 @@ function MonthView({ data, items, onPick, onClose }) {
         const logged = !!rec && riskLogged(rec, items);
         const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
         const rs = logged ? Math.round(riskScore({ ...emptyDay(), ...rec }, items, uc, !!relType)) : null;
+        const vh = rec ? vigourForDay({ ...emptyDay(), ...rec }, d, items, settings) : null;
+        const vp = vh && vh.total ? Math.round((vh.done / vh.total) * 100) : null;
+        const showBand = !future && vp !== null;
         let style = { border: "1px solid rgba(42,36,25,0.10)", background: "transparent", color: "#b8b0a2" };
         if (future)
             style = { border: "1px solid rgba(42,36,25,0.05)", background: "transparent", color: "#d4cec3" };
@@ -251,6 +258,8 @@ function MonthView({ data, items, onPick, onClose }) {
             style = { border: "none", background: riskTileColor(rs), color: "#fff", fontWeight: 600 };
         if (isToday)
             style.boxShadow = "0 0 0 2px #2a2419";
+        if (showBand)
+            style.paddingBottom = "30%";
         cells.push(React.createElement("button", {
             key: k, disabled: future,
             onClick: () => { if (!future) { onPick(Math.round((d.getTime() - t0.getTime()) / DAY_MS)); onClose(); } },
@@ -260,7 +269,11 @@ function MonthView({ data, items, onPick, onClose }) {
             React.createElement("span", { className: "text-[11px]" }, n),
             rs !== null && React.createElement("span", { className: "text-[13px] font-bold mt-0.5" }, rs),
             relType && React.createElement("span", { className: "absolute top-1 right-1.5 text-[8px] font-bold opacity-90" }, relType === "edge" ? "E" : "O"),
-            wet && React.createElement("span", { className: "absolute bottom-1 w-1 h-1 rounded-full", style: { background: relType || rs !== null ? "#ffffff" : "#c2701e" } })));
+            showBand && React.createElement("div", {
+                className: "absolute left-0 right-0 bottom-0 flex items-center justify-center",
+                style: { height: "30%", borderRadius: "0 0 11px 11px", background: vigourTileColor(vp), color: vp <= 40 ? "#5a4a1f" : "#fff5e0" },
+            }, React.createElement("span", { className: "text-[9px] font-bold" }, vp)),
+            wet && React.createElement("span", { className: "absolute bottom-1 right-1 w-1.5 h-1.5 rounded-full", style: { background: "#ffffff", boxShadow: "0 0 0 1px rgba(42,36,25,0.25)" } })));
     }
     return (React.createElement("div", { className: "fixed inset-0 z-[60] overflow-y-auto", style: { background: "#faf6ef" } },
         React.createElement("div", { className: "max-w-[430px] mx-auto p-5", style: { paddingTop: "calc(env(safe-area-inset-top,0px) + 18px)" } },
@@ -272,11 +285,16 @@ function MonthView({ data, items, onPick, onClose }) {
             React.createElement("div", { className: "grid grid-cols-7 gap-1.5" }, cells),
             React.createElement("div", { className: "mt-7" },
                 React.createElement("div", { className: "text-[9px] uppercase tracking-[0.2em] text-[#9a9285] mb-3" }, "Legend"),
-                React.createElement("div", { className: "flex items-center gap-2 mb-3" },
+                React.createElement("div", { className: "flex items-center gap-2 mb-1.5" },
                     React.createElement("div", { className: "flex-1 h-3 rounded-full", style: { background: "linear-gradient(90deg,#5c8a3c,#c2701e,#b62f2b)" } })),
-                React.createElement("div", { className: "flex justify-between text-[9px] uppercase tracking-[0.14em] text-[#9a9285] mb-4" },
+                React.createElement("div", { className: "flex justify-between text-[9px] uppercase tracking-[0.14em] text-[#9a9285] mb-2.5" },
                     React.createElement("span", null, "Risk 0"),
                     React.createElement("span", null, "Risk 100")),
+                React.createElement("div", { className: "flex items-center gap-2 mb-1.5" },
+                    React.createElement("div", { className: "flex-1 h-3 rounded-full", style: { background: "linear-gradient(90deg,#e7dcc4,#c9962c,#8a6318)" } })),
+                React.createElement("div", { className: "flex justify-between text-[9px] uppercase tracking-[0.14em] text-[#9a9285] mb-4" },
+                    React.createElement("span", null, "Vigour 0"),
+                    React.createElement("span", null, "Vigour 100")),
                 React.createElement("div", { className: "grid grid-cols-2 gap-y-2.5 gap-x-3" },
                     [
                         { sw: { background: "#a02623" }, badge: "O", t: "Relapse \u2014 orgasm" },
@@ -1008,6 +1026,8 @@ function App() {
     const setCheck = (id, v) => setDay("checks", { ...today.checks, [id]: v });
     const urgesToday = data.urges.filter((u) => dateKey(new Date(u.ts)) === vk).length;
     const relapseToday = data.relapses.some((r) => dateKey(new Date(r.ts)) === vk);
+    const existingRelapseIdx = data.relapses.findIndex((r) => dateKey(new Date(r.ts)) === vk);
+    const existingRelapse = existingRelapseIdx !== -1 ? data.relapses[existingRelapseIdx] : null;
     const therapistStatus = (() => {
         const next = data.settings.nextCheckin;
         if (!next)
@@ -1074,9 +1094,23 @@ function App() {
     })();
     const logUrge = () => { persist({ ...data, urges: [...data.urges, { ts: Date.now() }] }); setBreathing(true); };
     const logRelapse = (type) => {
-        persist({ ...data, relapses: [...data.relapses, { ts: Date.now(), type: type || "orgasm" }] });
+        const ts = isToday ? Date.now() : new Date(vk + "T12:00:00").getTime();
+        persist({ ...data, relapses: [...data.relapses, { ts, type: type || "orgasm" }] });
         setConfirmRelapse(false);
-        setJustRelapsed(true);
+        if (isToday)
+            setJustRelapsed(true);
+    };
+    const editRelapseType = (type) => {
+        if (existingRelapseIdx === -1)
+            return;
+        const next = [...data.relapses];
+        next[existingRelapseIdx] = { ...next[existingRelapseIdx], type };
+        persist({ ...data, relapses: next });
+    };
+    const removeRelapse = () => {
+        if (existingRelapseIdx === -1)
+            return;
+        persist({ ...data, relapses: data.relapses.filter((_, i) => i !== existingRelapseIdx) });
     };
     const logWetDream = () => {
         persist({ ...data, wetDreams: [...(data.wetDreams || []), { ts: Date.now() }] });
@@ -1262,7 +1296,7 @@ function App() {
                     + "@media (prefers-reduced-motion: reduce){.bull-energy,.bull-danger.tense,.bull-fruit-throb{animation:none !important;}}" } }),
         React.createElement("div", { className: "bull-energy" }),
         React.createElement("div", { className: "bull-danger" + (ambient.tense ? " tense" : "") }),
-        showMonth && React.createElement(MonthView, { data: data, items: items, onPick: (off) => { setViewOffset(off); setView("today"); }, onClose: () => setShowMonth(false) }),
+        showMonth && React.createElement(MonthView, { data: data, items: items, settings: data.settings, onPick: (off) => { setViewOffset(off); setView("today"); }, onClose: () => setShowMonth(false) }),
         showSplash && data && React.createElement(Splash, { vigour: vigourPct, risk: risk, cleanPct: cleanPct, streak: streak, onDone: () => setShowSplash(false) }),
         breathing && React.createElement(Breathe, { purposeText: data.settings.purposeText, onClose: () => setBreathing(false) }),
         React.createElement("div", { className: "max-w-md mx-auto px-4", style: { paddingTop: "calc(env(safe-area-inset-top, 0px) + 24px)" } },
@@ -1380,15 +1414,21 @@ function App() {
                 React.createElement(SectionLabel, null, "Sleep"),
                 React.createElement(Card, null,
                     React.createElement(NumField, { label: "Sleep Score", value: today.sleep, onChange: (v) => setDay("sleep", v), suffix: "%" })),
-                isToday && React.createElement("div", { className: "mt-8 text-center flex items-center justify-center gap-4" },
-                    !confirmRelapse && React.createElement("button", { onClick: () => setConfirmRelapse(true), className: "text-xs text-[#9a9285] underline uppercase tracking-wide" }, "Log A Relapse"),
-                    !confirmWetDream && React.createElement("button", { onClick: () => setConfirmWetDream(true), className: "text-xs text-[#9a9285] underline uppercase tracking-wide" }, "Log A Wet Dream")),
-                isToday && confirmRelapse && (React.createElement(Card, { className: "mt-3" },
+                React.createElement("div", { className: "mt-8 text-center flex items-center justify-center gap-4" },
+                    !confirmRelapse && !existingRelapse && React.createElement("button", { onClick: () => setConfirmRelapse(true), className: "text-xs text-[#9a9285] underline uppercase tracking-wide" }, "Log A Relapse"),
+                    isToday && !confirmWetDream && React.createElement("button", { onClick: () => setConfirmWetDream(true), className: "text-xs text-[#9a9285] underline uppercase tracking-wide" }, "Log A Wet Dream")),
+                confirmRelapse && !existingRelapse && (React.createElement(Card, { className: "mt-3" },
                     React.createElement("div", { className: "text-sm text-[#4a4335] mb-3" }, "What happened? Honesty keeps the data \u2014 and you \u2014 sharp."),
                     React.createElement("div", { className: "flex gap-2 mb-2" },
                         React.createElement("button", { onClick: () => logRelapse("orgasm"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide", style: { background: "#b62f2b" } }, "Orgasmed"),
                         React.createElement("button", { onClick: () => logRelapse("edge"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide", style: { background: "#c2701e" } }, "Edged Only")),
                     React.createElement("button", { onClick: () => setConfirmRelapse(false), className: "w-full py-2.5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-sm uppercase" }, "Cancel"))),
+                existingRelapse && (React.createElement(Card, { className: "mt-3" },
+                    React.createElement("div", { className: "text-xs uppercase tracking-widest font-bold mb-2 text-[#8a8172]" }, (isToday ? "Logged today \u2014 " : "Logged \u2014 ") + (existingRelapse.type === "edge" ? "Edged Only" : "Orgasmed")),
+                    React.createElement("div", { className: "flex gap-2 mb-2" },
+                        React.createElement("button", { onClick: () => editRelapseType("orgasm"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide transition-opacity " + (existingRelapse.type === "edge" ? "opacity-40" : ""), style: { background: "#b62f2b" } }, "Orgasmed"),
+                        React.createElement("button", { onClick: () => editRelapseType("edge"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide transition-opacity " + (existingRelapse.type === "orgasm" || !existingRelapse.type ? "opacity-40" : ""), style: { background: "#c2701e" } }, "Edged Only")),
+                    React.createElement("button", { onClick: removeRelapse, className: "w-full py-2.5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-sm uppercase" }, "Remove Log"))),
                 isToday && confirmWetDream && (React.createElement(Card, { className: "mt-3" },
                     React.createElement("div", { className: "text-sm text-[#4a4335] mb-3" }, "Log a wet dream for today? Used only for Pattern correlation \u2014 same as relapses."),
                     React.createElement("div", { className: "flex gap-2" },
