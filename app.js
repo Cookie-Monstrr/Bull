@@ -339,6 +339,7 @@ const DEFAULT_ITEMS = [
     { id: "contentAccess", label: "Content Access", sub: "Low / Medium / High, logged daily", list: "prev", kind: "tier", weight: "high" },
     { id: "checkout", label: "Checking Out Women", sub: "None / A Few / A Lot, logged daily", list: "prev", kind: "tier", weight: "high" },
     { id: "recoveryLow", label: "Recovery Below 40%", sub: "Auto — from your Recovery Score", list: "prev", kind: "derived", weight: "med" },
+    { id: "sleepLow", label: "Sleep Below 65%", sub: "Auto — from your Sleep Score", list: "prev", kind: "derived", weight: "med" },
     { id: "purposeLow", label: "Low-Purpose Day (1–2)", sub: "Auto — from your Evening Review", list: "prev", kind: "derived", weight: "med" },
     { id: "purposeHigh", label: "High-Purpose Day (4–5)", sub: "Auto — protective, from your Evening Review", list: "prev", kind: "derived", weight: "med" },
     { id: "accountabilityGap", label: "Accountability Not On Track", sub: "Auto — nothing booked, overdue, or too far out", list: "prev", kind: "derived", weight: "high" },
@@ -427,7 +428,7 @@ function migrate(old) {
     base.settings = { fastMode: "both", sleepWeight: 2, morningReminderTime: "08:00", eveningReminderTime: "21:30", ...base.settings };
     base.wetDreams = base.wetDreams || [];
     base.items = (base.items || []).filter((i) => i.id !== "latescreen");
-    const NEW_BUILTIN_IDS = ["contentAccess", "checkout", "recoveryLow", "purposeLow", "purposeHigh", "accountabilityGap", "urgeSurvivalBonus", "sickFlag", "travelFlag"];
+    const NEW_BUILTIN_IDS = ["contentAccess", "checkout", "recoveryLow", "sleepLow", "purposeLow", "purposeHigh", "accountabilityGap", "urgeSurvivalBonus", "sickFlag", "travelFlag"];
     NEW_BUILTIN_IDS.forEach((id) => {
         if (!base.items.some((i) => i.id === id)) {
             const def = DEFAULT_ITEMS.find((i) => i.id === id);
@@ -525,6 +526,11 @@ function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty 
     if (d.recovery !== null && d.recovery !== undefined && d.recovery !== "" && Number(d.recovery) < 40) {
         r += Math.round(10 * scaleOf("recoveryLow", "med"));
     }
+    /* sleep scores on both sides: it already feeds Vigour proportionally, and a poor
+       night is a genuine risk factor in its own right */
+    if (d.sleep !== null && d.sleep !== undefined && d.sleep !== "" && Number(d.sleep) < 65) {
+        r += Math.round(10 * scaleOf("sleepLow", "med"));
+    }
     if (d.purposeRating !== null && d.purposeRating !== undefined) {
         if (d.purposeRating <= 2)
             r += Math.round(10 * scaleOf("purposeLow", "med"));
@@ -588,6 +594,10 @@ function GroupHeader({ icon: Icon, color, children }) {
         React.createElement(Icon, { size: 17, style: { color, opacity: 0.8 } }),
         React.createElement("div", { className: "font-serif text-[15px] tracking-[0.18em]", style: { color, opacity: 0.95 } }, children)));
 }
+const Horns = (p) => React.createElement(IconBase, { ...p },
+    React.createElement("path", { d: "M4 4c0 5 1.5 8 5 9.5" }),
+    React.createElement("path", { d: "M20 4c0 5-1.5 8-5 9.5" }),
+    React.createElement("path", { d: "M9 13.5a3 3 0 0 0 6 0" }));
 function EvChip({ ev }) {
     const map = {
         strong: ["Strong", "rgba(92,138,60,0.16)", "#456a2c"],
@@ -702,7 +712,7 @@ function ShieldRisk({ risk, size = 68 }) {
         React.createElement("div", { className: "text-[10px] uppercase tracking-widest text-[#8a8172] mt-1 font-semibold" }, "Risk \u00B7 ", Math.round(risk))));
 }
 const SPLASH_CSS = `
-.bull-splash{position:relative;width:100%;max-width:430px;height:100dvh;margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:#faf6ef;font-family:'JetBrains Mono',monospace;}
+.bull-splash{position:relative;width:100%;max-width:430px;height:100dvh;margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:#faf6ef;font-family:'Inter',system-ui,sans-serif;}
 .bull-splash .glow{position:absolute;inset:-20%;background:radial-gradient(circle at 50% 42%,#f5e6c4 0%,#faf6ef 62%);opacity:0;transition:opacity 1.4s ease;}
 .bull-splash.on .glow{opacity:1;}
 .bull-splash .pulse{position:absolute;top:42%;left:50%;width:min(72vw,300px);height:min(72vw,300px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(201,150,44,0.30) 0%,rgba(201,150,44,0) 70%);opacity:0;}
@@ -745,17 +755,17 @@ const SPLASH_CSS = `
 .bull-splash.on .vc.c1{animation-delay:4.4s;}
 .bull-splash.on .vc.c2{animation-delay:4.85s;}
 .bull-splash.on .vc.c3{animation-delay:5.3s;}
-.bull-splash .word{margin-top:22px;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.32em;font-size:1.7rem;font-weight:700;color:#2a2419;opacity:0;transform:translateY(8px);transition:opacity 1s ease 3.9s,transform 1s ease 3.9s;}
+.bull-splash .word{margin-top:22px;font-family:'Bodoni Moda',serif;text-transform:uppercase;letter-spacing:0.32em;font-size:1.7rem;font-weight:700;color:#2a2419;opacity:0;transform:translateY(8px);transition:opacity 1s ease 3.9s,transform 1s ease 3.9s;}
 .bull-splash.on .word{opacity:1;transform:translateY(0);}
 .bull-splash .line{font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:#8a8172;margin-top:8px;opacity:0;transition:opacity 1s ease 4.3s;}
 .bull-splash.on .line{opacity:1;}
 .bull-splash .stats{display:flex;gap:34px;margin-top:30px;opacity:0;transform:translateY(6px);transition:opacity .9s ease 4.7s,transform .9s ease 4.7s;}
 .bull-splash.on .stats{opacity:1;transform:translateY(0);}
 .bull-splash .stat{text-align:center;}
-.bull-splash .stat .num{font-family:'Oswald',sans-serif;font-weight:700;font-size:1.9rem;color:#a8791f;line-height:1;font-variant-numeric:tabular-nums;}
+.bull-splash .stat .num{font-family:'Bodoni Moda',serif;font-weight:700;font-size:1.9rem;color:#a8791f;line-height:1;font-variant-numeric:tabular-nums;}
 .bull-splash .stat .lbl{font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:#8a8172;margin-top:6px;}
 .bull-splash .bsdivider{width:1px;background:rgba(42,36,25,0.14);align-self:stretch;}
-.bull-splash .hype{position:absolute;bottom:15%;left:0;right:0;text-align:center;padding:0 40px;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.08em;font-size:0.98rem;font-weight:600;color:#5a5140;opacity:0;transition:opacity 1s ease 5.3s;}
+.bull-splash .hype{position:absolute;bottom:15%;left:0;right:0;text-align:center;padding:0 40px;font-family:'Bodoni Moda',serif;text-transform:uppercase;letter-spacing:0.08em;font-size:0.98rem;font-weight:600;color:#5a5140;opacity:0;transition:opacity 1s ease 5.3s;}
 .bull-splash.on .hype{opacity:1;}
 @media (prefers-reduced-motion: reduce){
   .bull-splash *{animation:none !important;transition:none !important;}
@@ -820,9 +830,15 @@ const BEND_REST = -13;
 const BEND_THROB = 5;
 /* fully limp is this much thicker across the girth, tapering off as it fills */
 const BEND_FAT = 0.24;
+/* The limp swing is far wider than the resting silhouette, so one fixed scale either
+   clips the droop or leaves the resting mark tiny inside the ring. These are the fitted
+   scale + centre for each end; the driver interpolates between them, which also reads
+   as the mark growing into the ring as it rises. Verified: no frame clips. */
+const FIT_LIMP = { s: 0.8765, cx: 72.17, cy: 75.99 };
+const FIT_REST = { s: 0.9002, cx: 48.04, cy: 46.67 };
 const STEM_REF_Y = 26;
 const FRUIT_BODY_D = "M46 24 C40 30, 38 40, 39 50 C40 60, 34 64, 33 72 C32 82, 40 89, 50 90 C60 89, 68 82, 67 72 C66 63, 61 59, 60 50 C59 40, 58 30, 54 24 C51 22, 48 22, 46 24 Z";
-function SplashFruit({ sfx, reg }) {
+function SplashFruit({ sfx, reg, greg }) {
     return (React.createElement("svg", { viewBox: "0 0 100 100" },
                                 React.createElement("defs", null,
                                     React.createElement("linearGradient", { id: "bsGoldGradF" + sfx, x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
@@ -832,7 +848,7 @@ function SplashFruit({ sfx, reg }) {
                                        it doesn't leave the shape and stop in mid-air */
                                     React.createElement("clipPath", { id: "bsBodyClip" + sfx },
                                         React.createElement("path", { ref: (e) => reg(e, FRUIT_BODY_D), d: FRUIT_BODY_D }))),
-                                React.createElement("g", { transform: "translate(50 54) scale(0.50) translate(-49.54 -53.5)" },
+                                React.createElement("g", { ref: greg, transform: "translate(50 50) scale(0.9) translate(-48.04 -46.67)" },
                                     React.createElement("path", { ref: (e) => reg(e, FRUIT_BODY_D), fill: `url(#bsGoldGradF${sfx})`, d: FRUIT_BODY_D }),
                                     React.createElement("path", { ref: (e) => reg(e, FRUIT_BODY_D), className: "flush-intro", fill: "#f5cf7e", d: FRUIT_BODY_D }),
                                     React.createElement("path", { ref: (e) => reg(e, FRUIT_BODY_D), className: "flush-beat", fill: "#f5cf7e", d: FRUIT_BODY_D }),
@@ -873,6 +889,8 @@ function Splash({ vigour, risk, cleanPct, streak, onDone }) {
        React state — re-rendering the whole splash at 60fps to move a path would be
        wasteful and janky. */
     const partsRef = useRef([]);
+    const groupRef = useRef(null);
+    const greg = (el) => { groupRef.current = el; };
     const reg = (el, d, refY, isVein) => {
         if (el && !partsRef.current.some((p) => p.el === el))
             partsRef.current.push({ el, d, refY, isVein });
@@ -890,6 +908,12 @@ function Splash({ vigour, risk, cleanPct, streak, onDone }) {
                 : BEND_REST + BEND_THROB * 0.5 * (1 - Math.cos(((dt - RISE) / 2400) * Math.PI * 2));
             const erect = Math.max(0, Math.min(1, (BEND_LIMP - deg) / (BEND_LIMP - BEND_REST)));
             const fat = 1 + BEND_FAT * (1 - erect);
+            if (groupRef.current) {
+                const s = FIT_LIMP.s + (FIT_REST.s - FIT_LIMP.s) * erect;
+                const cx = FIT_LIMP.cx + (FIT_REST.cx - FIT_LIMP.cx) * erect;
+                const cy = FIT_LIMP.cy + (FIT_REST.cy - FIT_LIMP.cy) * erect;
+                groupRef.current.setAttribute("transform", `translate(50 50) scale(${s.toFixed(4)}) translate(${(-cx).toFixed(2)} ${(-cy).toFixed(2)})`);
+            }
             partsRef.current.forEach((p) => {
                 p.el.setAttribute("d", bendPath(p.d, deg, p.refY, fat));
                 /* veins barely read when limp, swelling in as blood arrives */
@@ -927,7 +951,8 @@ function Splash({ vigour, risk, cleanPct, streak, onDone }) {
             };
             requestAnimationFrame(tick);
         }, 4700);
-        const done = setTimeout(finish, 7000);
+        /* long hold once the numbers land — they were gone before they could be read */
+        const done = setTimeout(finish, 10800);
         return () => { cancelAnimationFrame(raf1); clearTimeout(countStart); clearTimeout(done); };
     }, []);
     const c = 2 * Math.PI * 48;
@@ -949,7 +974,7 @@ function Splash({ vigour, risk, cleanPct, streak, onDone }) {
                 React.createElement("div", { className: "riser" },
                     React.createElement("div", { className: "grow" },
                         React.createElement("div", { className: "beat" },
-                            React.createElement(SplashFruit, { sfx: "a", reg: reg }))))),
+                            React.createElement(SplashFruit, { sfx: "a", reg: reg, greg: greg }))))),
             React.createElement("div", { className: "word" }, "Bull"),
             React.createElement("div", { className: "stats" },
                 React.createElement("div", { className: "stat" }, React.createElement("div", { className: "num" }, vigDisp), React.createElement("div", { className: "lbl" }, "Vigour \u00B7 30d")),
@@ -999,7 +1024,8 @@ function Breathe({ purposeText, onClose }) {
     return (React.createElement("div", { className: "fixed inset-0 z-50 flex flex-col items-center justify-between p-6 overflow-y-auto", style: { background: "#faf6ef" } },
         React.createElement("div", { className: "w-full max-w-md pt-4" },
             React.createElement("div", { className: "text-xs uppercase tracking-widest font-bold mb-3", style: { color: TEAL } }, "Win Logged \u2014 Urge Survived"),
-            React.createElement("p", { className: "font-serif text-[#332d20] text-lg leading-relaxed whitespace-pre-line" }, purposeText)),
+            /* purpose text is a personal sentence, not a heading — Bodoni-uppercase (font-serif) reads as shouting here, so it stays on the Inter body face in its normal case */
+React.createElement("p", { className: "italic text-[#332d20] text-lg leading-relaxed whitespace-pre-line" }, purposeText)),
         !started ? (React.createElement("button", { onClick: () => setStarted(true), className: "my-10 px-8 py-4 rounded-2xl font-bold text-lg text-neutral-950", style: { background: TEAL } }, "BEGIN 3-MINUTE RESET")) : (React.createElement("div", { className: "flex flex-col items-center my-8" },
             React.createElement("div", { className: "relative w-52 h-52 flex items-center justify-center" },
                 React.createElement("div", { className: "absolute inset-0 rounded-full border border-[rgba(42,36,25,0.10)]" }),
@@ -1269,10 +1295,13 @@ function App() {
         setConfirmWetDream(false);
     };
     const now = new Date(Date.now() + viewOffset * DAY_MS);
-    const prevRisks = items.filter((i) => isPrev(i) && i.kind === "risk" && scheduledOn(i, now)).sort(byWeightDesc);
-    const prevHabits = items.filter((i) => isPrev(i) && i.kind === "habit" && scheduledOn(i, now)).sort(byWeightDesc);
+    const prevRisks = items.filter((i) => i.list === "prev" && i.kind === "risk" && scheduledOn(i, now)).sort(byWeightDesc);
+    const prevHabits = items.filter((i) => i.list === "prev" && i.kind === "habit" && scheduledOn(i, now)).sort(byWeightDesc);
     const fastToday = fastingSuggested(now, data.settings.fastMode);
-    const primeToday = items.filter((i) => isPrime(i) && (i.kind === "habit" || i.kind === "risk") && (i.fastingAuto ? fastToday : scheduledOn(i, now))).sort(byWeightDesc);
+    const primeToday = items.filter((i) => i.list === "prime" && (i.kind === "habit" || i.kind === "risk") && (i.fastingAuto ? fastToday : scheduledOn(i, now))).sort(byWeightDesc);
+    /* Double Horns: items that score on both sides. Shown once, in their own section,
+       rather than duplicated into Prevention and Vigour. */
+    const dualToday = items.filter((i) => i.list === "both" && (i.fastingAuto ? fastToday : scheduledOn(i, now))).sort(byWeightDesc);
     const primeByBucket = BUCKETS.map((b) => ({ ...b, items: primeToday.filter((i) => (i.bucket || "test") === b.id) })).filter((b) => b.items.length);
     /* ---- stats ---- */
     const statsFor = () => {
@@ -1463,7 +1492,7 @@ function App() {
                     + ".bull-urge-inner{display:flex;align-items:center;justify-content:center;gap:13px;padding:15px 18px;}"
                     + ".bull-urge-ring{display:flex;align-items:center;justify-content:center;width:35px;height:35px;border-radius:999px;background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.34);color:#3d2c07;flex-shrink:0;}"
                     + ".bull-urge-copy{display:flex;flex-direction:column;align-items:flex-start;line-height:1.05;}"
-                    + ".bull-urge-main{font-family:\'Oswald\',sans-serif;text-transform:uppercase;letter-spacing:0.2em;font-size:1.12rem;font-weight:700;color:#2e2105;}"
+                    + ".bull-urge-main{font-family:\'Bodoni Moda\',serif;text-transform:uppercase;letter-spacing:0.2em;font-size:1.12rem;font-weight:700;color:#2e2105;}"
                     + ".bull-urge-sub{font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:rgba(46,33,5,0.62);margin-top:3px;}"
                     + ".bull-urge-sheen{position:absolute;top:0;bottom:0;width:38%;left:-45%;background:linear-gradient(100deg,transparent,rgba(255,255,255,0.42),transparent);animation:bullUrgeSheen 5.2s ease-in-out infinite;pointer-events:none;}"
                     + "@keyframes bullUrgeSheen{0%,72%{left:-45%;}92%,100%{left:112%;}}"
@@ -1585,6 +1614,11 @@ function App() {
                             return (React.createElement("button", { key: s, onClick: () => setDay("supplementsTaken", { ...today.supplementsTaken, [s]: !on }), className: "px-3 py-1.5 rounded-full text-xs uppercase tracking-wide border transition-colors font-semibold " +
                                     (on ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: on ? { background: AMBER, borderColor: AMBER } : undefined }, s));
                         }))))),
+                React.createElement(GroupHeader, { icon: Horns, color: AMBER }, "Double Horns"),
+                React.createElement("div", { className: "text-[10px] text-[#9a9285] tracking-[0.08em] mb-1 leading-relaxed" }, "Score on both sides \u2014 each at its own weight."),
+                dualToday.length > 0 && React.createElement(TileGrid, null, dualToday.map((it) => (it.kind === "risk"
+                    ? React.createElement(Tile, { key: it.id, mode: "risk", label: it.label, value: today.checks[it.id], onChange: (v) => setCheck(it.id, v) })
+                    : React.createElement(Tile, { key: it.id, mode: "vigour", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))),
                 React.createElement(SectionLabel, null, "Sleep"),
                 React.createElement(Card, null,
                     React.createElement(NumField, { label: "Sleep Score", value: today.sleep, onChange: (v) => setDay("sleep", v), suffix: "%" })),
@@ -1695,9 +1729,17 @@ function App() {
                     React.createElement("textarea", { value: data.settings.purposeText, onChange: (e) => setSetting("purposeText", e.target.value), rows: 6, className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#332d20] leading-relaxed" }),
                     React.createElement("div", { className: "text-xs text-[#8a8172] mt-1" }, "Shown when you tap Urge.")),
                 React.createElement(SectionLabel, null, "Prevention Checklist Items"),
-                React.createElement(Card, null, items.filter(isPrev).sort(byWeightDesc).map((it) => ItemEditorRow({ item: it, side: "prev" }))),
+                React.createElement(Card, null, items.filter((i) => i.list === "prev").sort(byWeightDesc).map((it) => ItemEditorRow({ item: it, side: "prev" }))),
+                (() => {
+                    const rows = items.filter((i) => i.list === "both").sort(byWeightDesc);
+                    if (!rows.length)
+                        return null;
+                    return React.createElement(React.Fragment, null,
+                        React.createElement(SectionLabel, null, "Double Horns \u00B7 Both Sides"),
+                        React.createElement(Card, null, rows.map((it) => ItemEditorRow({ item: it, side: "prime" }))));
+                })(),
                 BUCKETS.map((b) => {
-                    const rows = items.filter((i) => isPrime(i) && (i.bucket || "test") === b.id).sort(byWeightDesc);
+                    const rows = items.filter((i) => i.list === "prime" && (i.bucket || "test") === b.id).sort(byWeightDesc);
                     if (!rows.length)
                         return null;
                     return React.createElement(React.Fragment, { key: b.id },
