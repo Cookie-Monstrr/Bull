@@ -160,6 +160,30 @@ function VigourFigure({ pct, size = 58 }) {
                 React.createElement("path", { strokeWidth: "1", d: `M${(50 - wz * 0.6).toFixed(2)} 58 L${(50 + wz * 0.6).toFixed(2)} 58` }))),
         React.createElement("div", { className: "text-[9px] uppercase tracking-[0.14em] text-[#9a9285] mt-1 font-semibold" }, "Vigour \u00B7 ", Math.round(pct || 0))));
 }
+const ART_BANDS = [0, 20, 40, 60, 80];
+function bandIndex(v) {
+    let i = 0;
+    ART_BANDS.forEach((b, n) => { if ((v || 0) >= b) i = n; });
+    return i;
+}
+function BandArt({ value, dir, size, fallback }) {
+    const [failed, setFailed] = useState({});
+    const idx = bandIndex(value);
+    if (failed[idx])
+        return fallback;
+    return React.createElement("div", { style: { width: size, height: size, position: "relative" } },
+        [0, 1, 2, 3, 4].map((n) => React.createElement("img", {
+            key: n,
+            src: "./art/" + dir + "-" + (n + 1) + ".png",
+            alt: "", "aria-hidden": "true", draggable: false,
+            onError: () => setFailed((f) => (f[n] ? f : Object.assign({}, f, { [n]: true }))),
+            style: {
+                position: "absolute", inset: 0, width: "100%", height: "100%",
+                objectFit: "contain", pointerEvents: "none",
+                opacity: n === idx ? 1 : 0, transition: "opacity 0.5s ease",
+            },
+        })));
+}
 function DevilRisk({ risk, size = 58 }) {
     const d = Math.max(0, Math.min(1, (risk || 0) / 100));
     const sc = 0.32 + 0.88 * d, cx = 50, cy = 58;
@@ -219,7 +243,7 @@ function MonthView({ data, items, settings, onPick, onClose }) {
         const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
         const rs = logged ? Math.round(riskScore({ ...emptyDay(), ...rec }, items, uc, !!relType)) : null;
         const vh = rec ? vigourForDay({ ...emptyDay(), ...rec }, d, items, settings) : null;
-        const vp = vh && vh.total ? Math.round((vh.done / vh.total) * 100) : null;
+        const vp = vh && vh.total ? Math.round(pctFrom(vh.done, vh.total)) : null;
         const showBand = !future && vp !== null;
         let style = { border: "1px solid rgba(42,36,25,0.10)", background: "transparent", color: "#b8b0a2" };
         if (future)
@@ -550,6 +574,9 @@ function riskLogged(day, items) {
     const anyRisk = items.some((i) => isPrev(i) && day.checks && day.checks[i.id] !== undefined && day.checks[i.id] !== null);
     return anyRisk || day.access != null || day.checkout != null || day.purposeRating != null;
 }
+function pctFrom(done, total) {
+    return total ? Math.max(0, Math.min(100, (done / total) * 100)) : 0;
+}
 function vigourForDay(day, date, items, settings) {
     const d = day || emptyDay();
     let total = 0, done = 0;
@@ -563,9 +590,19 @@ function vigourForDay(day, date, items, settings) {
         const w = W_ADH[it.vigourWeight || it.weight] || 2;
         const v = d.checks ? d.checks[it.id] : undefined;
         total += w;
-        /* a risk-kind dual item earns vigour by being AVOIDED, not by being done */
-        if (it.kind === "risk" ? v === false : v === true)
+        /* Risk-kind items earn Vigour by being avoided (v===false) and now genuinely
+           COST it by happening (v===true) — not just withhold the credit. Not logging
+           it at all stays neutral, sitting between the two. Symmetric ±w around that
+           neutral point, using the same weight already exposed in Settings. */
+        if (it.kind === "risk") {
+            if (v === false)
+                done += w;
+            else if (v === true)
+                done -= w;
+        }
+        else if (v === true) {
             done += w;
+        }
     });
     const sups = settings.supplements || [];
     if (sups.length) {
@@ -1192,7 +1229,7 @@ function App() {
         : therapistStatus === "outside" ? 8 : 0;
     const risk = riskScore(today, items, urgesToday, relapseToday, accountabilityPenalty);
     const h = vigourForDay(today, new Date(), items, data.settings);
-    const vigourPct = h.total ? (h.done / h.total) * 100 : 0;
+    const vigourPct = pctFrom(h.done, h.total);
     const loggedRelapse = data.relapses.length ? Math.max(...data.relapses.map((r) => r.ts)) : null;
     const lastRelapse = loggedRelapse || null;
     const streak = Math.max(0, Math.floor((Date.now() - (lastRelapse || data.firstUse)) / DAY_MS));
@@ -1265,7 +1302,7 @@ function App() {
         const spanDays = Math.min(30, Math.max(1, Math.floor((Date.now() - data.firstUse) / DAY_MS) + 1));
         const relIn30 = new Set(data.relapses.filter((r) => r.ts >= from).map((r) => dateKey(new Date(r.ts))));
         return {
-            vigour: ht ? Math.round((hd / ht) * 100) : Math.round(vigourPct),
+            vigour: ht ? Math.round(pctFrom(hd, ht)) : Math.round(vigourPct),
             risk: rN ? Math.round(rSum / rN) : Math.round(risk),
             clean: Math.round((100 * (spanDays - relIn30.size)) / spanDays),
         };
@@ -1339,7 +1376,7 @@ function App() {
         });
         return {
             avgRisk: keys.length ? sum / keys.length : null,
-            vigour: ht ? (hd / ht) * 100 : null,
+            vigour: ht ? pctFrom(hd, ht) : null,
             urges: data.urges.filter((u) => u.ts >= from).length,
             relapses: data.relapses.filter((r) => r.ts >= from).length,
             orgasms: data.relapses.filter((r) => r.ts >= from && (r.type || "orgasm") === "orgasm").length,
@@ -1528,8 +1565,8 @@ function App() {
                                 windowDays,
                                 "D"))),
                     React.createElement("div", { className: "flex gap-3 shrink-0" },
-                        React.createElement(DevilRisk, { risk: risk, size: 62 }),
-                        React.createElement(VigourFigure, { pct: vigourPct, size: 62 }))),
+                        React.createElement(BandArt, { value: risk, dir: "devil", size: 62, fallback: React.createElement(DevilRisk, { risk: risk, size: 62 }) }),
+                        React.createElement(BandArt, { value: vigourPct, dir: "physique", size: 62, fallback: React.createElement(VigourFigure, { pct: vigourPct, size: 62 }) }))),
                 React.createElement("div", { className: "bull-forceline" }),
                 healthImported && isToday && (React.createElement("div", { className: "mt-3 rounded-xl px-3 py-2 text-[11px] tracking-wide", style: { background: "rgba(201,150,44,0.12)", color: "#8a7333" } },
                     "Imported from Health: " + healthImported.join(", "))),
