@@ -174,7 +174,7 @@ function BandArt({ value, dir, size, fallback }) {
     return React.createElement("div", { style: { width: size, height: size, position: "relative" } },
         [0, 1, 2, 3, 4].map((n) => React.createElement("img", {
             key: n,
-            src: "./art/" + dir + "-" + (n + 1) + ".png",
+            src: "./" + dir + "-" + (n + 1) + ".png",
             alt: "", "aria-hidden": "true", draggable: false,
             onError: () => setFailed((f) => (f[n] ? f : Object.assign({}, f, { [n]: true }))),
             style: {

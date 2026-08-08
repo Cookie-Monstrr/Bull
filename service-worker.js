@@ -1,24 +1,23 @@
-const CACHE = "bull-v29";
+const CACHE = "bull-v30";
 const SHELL = [
   "./",
   "./index.html",
   "./app.js",
   "./manifest.json",
   "./preview-b-bull.png",
-  "./art/devil-1.png",
-  "./art/devil-2.png",
-  "./art/devil-3.png",
-  "./art/devil-4.png",
-  "./art/devil-5.png",
-  "./art/physique-1.png",
-  "./art/physique-2.png",
-  "./art/physique-3.png",
-  "./art/physique-4.png",
-  "./art/physique-5.png",
+  "./devil-1.png",
+  "./devil-2.png",
+  "./devil-3.png",
+  "./devil-4.png",
+  "./devil-5.png",
+  "./physique-1.png",
+  "./physique-2.png",
+  "./physique-3.png",
+  "./physique-4.png",
+  "./physique-5.png",
 ];
 
-/* Each shell file is cached individually — physique-1.png doesn't exist on the repo
-   yet (held back pending a redo), and one missing file must not fail the whole
+/* Each shell file is cached individually so one missing asset can't fail the whole
    precache the way a single addAll() would. */
 self.addEventListener("install", (e) => {
   e.waitUntil(
