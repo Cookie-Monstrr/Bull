@@ -1350,7 +1350,7 @@ function App() {
     /* Double Horns: items that score on both sides. Shown once, in their own section,
        rather than duplicated into Prevention and Vigour. */
     const dualToday = items.filter((i) => i.list === "both" && (i.fastingAuto ? fastToday : scheduledOn(i, now))).sort(byWeightDesc);
-    const primeByBucket = BUCKETS.map((b) => ({ ...b, items: primeToday.filter((i) => (i.bucket || "test") === b.id) })).filter((b) => b.items.length);
+    const primeByBucket = BUCKETS.map((b) => ({ ...b, items: primeToday.filter((i) => (i.bucket || "test") === b.id) })).filter((b) => b.items.length || b.id === "test");
     /* ---- stats ---- */
     const statsFor = () => {
         const nowTs = Date.now();
