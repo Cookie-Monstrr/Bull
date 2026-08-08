@@ -1652,7 +1652,7 @@ function App() {
                 React.createElement(GroupHeader, { icon: Zap, color: AMBER }, "Sexual Vigour"),
                 primeByBucket.map((b) => React.createElement(React.Fragment, { key: b.id },
                     React.createElement(SectionLabel, null, b.label),
-                    React.createElement(TileGrid, null, b.items.map((it) => (it.kind === "risk"
+                    b.items.length > 0 && React.createElement(TileGrid, null, b.items.map((it) => (it.kind === "risk"
                         ? React.createElement(Tile, { key: it.id, mode: "risk", label: it.label, value: today.checks[it.id], onChange: (v) => setCheck(it.id, v) })
                         : React.createElement(Tile, { key: it.id, mode: "vigour", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))),
                     /* supplements sit under Testosterone \u2014 they're scored as one lump, not per-bucket */
