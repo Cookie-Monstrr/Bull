@@ -166,23 +166,34 @@ function bandIndex(v) {
     ART_BANDS.forEach((b, n) => { if ((v || 0) >= b) i = n; });
     return i;
 }
-function BandArt({ value, dir, size, fallback }) {
+function BandArt({ value, dir, size, label, fallback }) {
     const [failed, setFailed] = useState({});
     const idx = bandIndex(value);
     if (failed[idx])
         return fallback;
-    return React.createElement("div", { style: { width: size, height: size, position: "relative" } },
-        [0, 1, 2, 3, 4].map((n) => React.createElement("img", {
-            key: n,
-            src: "./" + dir + "-" + (n + 1) + ".png",
-            alt: "", "aria-hidden": "true", draggable: false,
-            onError: () => setFailed((f) => (f[n] ? f : Object.assign({}, f, { [n]: true }))),
-            style: {
-                position: "absolute", inset: 0, width: "100%", height: "100%",
-                objectFit: "contain", pointerEvents: "none",
-                opacity: n === idx ? 1 : 0, transition: "opacity 0.5s ease",
-            },
-        })));
+    /* The 5 band images are a discrete swap, but the old code-drawn figures grew
+       continuously with the exact score. Layering a smooth scale on top of the
+       band crossfade keeps that same "grows as the number moves" feel instead of
+       only jumping every 20 points — same curve DevilRisk used (0.4–1.2x),
+       anchored to the bottom so the figure grows up from the ground line baked
+       into the art rather than from its center. */
+    const t = Math.max(0, Math.min(1, (value || 0) / 100));
+    const sc = 0.4 + 0.8 * t;
+    return React.createElement("div", { className: "flex flex-col items-center" },
+        React.createElement("div", { style: { width: size, height: size, position: "relative", overflow: "visible" } },
+            React.createElement("div", { style: { position: "absolute", inset: 0, transform: `scale(${sc.toFixed(3)})`, transformOrigin: "50% 100%", transition: "transform 0.5s ease" } },
+                [0, 1, 2, 3, 4].map((n) => React.createElement("img", {
+                    key: n,
+                    src: "./" + dir + "-" + (n + 1) + ".png",
+                    alt: "", "aria-hidden": "true", draggable: false,
+                    onError: () => setFailed((f) => (f[n] ? f : Object.assign({}, f, { [n]: true }))),
+                    style: {
+                        position: "absolute", inset: 0, width: "100%", height: "100%",
+                        objectFit: "contain", pointerEvents: "none",
+                        opacity: n === idx ? 1 : 0, transition: "opacity 0.5s ease",
+                    },
+                })))),
+        React.createElement("div", { className: "text-[9px] uppercase tracking-[0.14em] text-[#9a9285] mt-1 font-semibold" }, label, " \u00B7 ", Math.round(value || 0)));
 }
 function DevilRisk({ risk, size = 58 }) {
     const d = Math.max(0, Math.min(1, (risk || 0) / 100));
@@ -1565,8 +1576,8 @@ function App() {
                                 windowDays,
                                 "D"))),
                     React.createElement("div", { className: "flex gap-3 shrink-0" },
-                        React.createElement(BandArt, { value: risk, dir: "devil", size: 62, fallback: React.createElement(DevilRisk, { risk: risk, size: 62 }) }),
-                        React.createElement(BandArt, { value: vigourPct, dir: "physique", size: 62, fallback: React.createElement(VigourFigure, { pct: vigourPct, size: 62 }) }))),
+                        React.createElement(BandArt, { value: risk, dir: "devil", size: 62, label: "Risk", fallback: React.createElement(DevilRisk, { risk: risk, size: 62 }) }),
+                        React.createElement(BandArt, { value: vigourPct, dir: "physique", size: 62, label: "Vigour", fallback: React.createElement(VigourFigure, { pct: vigourPct, size: 62 }) }))),
                 React.createElement("div", { className: "bull-forceline" }),
                 healthImported && isToday && (React.createElement("div", { className: "mt-3 rounded-xl px-3 py-2 text-[11px] tracking-wide", style: { background: "rgba(201,150,44,0.12)", color: "#8a7333" } },
                     "Imported from Health: " + healthImported.join(", "))),
