@@ -1,4 +1,4 @@
-const CACHE = "bull-v31";
+const CACHE = "bull-v32";
 const SHELL = [
   "./",
   "./index.html",
@@ -17,11 +17,19 @@ const SHELL = [
   "./physique-5.png",
 ];
 
-/* Each shell file is cached individually so one missing asset can't fail the whole
-   precache the way a single addAll() would. */
+/* cache.add() does a normal fetch, which can be satisfied by the browser's own HTTP
+   cache — meaning a precache can silently capture stale content even on a brand new
+   service worker version. { cache: "reload" } forces a real network round-trip for
+   every shell file, bypassing HTTP cache entirely, not just this cache's own. Each
+   file is still handled individually so one missing asset can't fail the whole
+   install the way a single addAll() would. */
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches.open(CACHE).then((c) => Promise.all(SHELL.map((u) => c.add(u).catch(() => {}))))
+    caches.open(CACHE).then((c) =>
+      Promise.all(SHELL.map((u) =>
+        fetch(u, { cache: "reload" }).then((res) => c.put(u, res)).catch(() => {})
+      ))
+    )
   );
   self.skipWaiting();
 });
