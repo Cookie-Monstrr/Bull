@@ -398,7 +398,7 @@ const DEFAULT_SETTINGS = {
     therapyNote: "",
     lapsePlan: "",
     fastMode: "both",
-    sleepWeight: 2,
+    sleepWeight: "high",
     morningReminderTime: "08:00",
     eveningReminderTime: "21:30",
 };
@@ -468,7 +468,7 @@ function migrate(old) {
        reads .length off it. Spread order puts saved values last so nothing is clobbered. */
     if (!Array.isArray(base.rules))
         base.rules = [];
-    base.settings = { fastMode: "both", sleepWeight: 2, morningReminderTime: "08:00", eveningReminderTime: "21:30",
+    base.settings = { fastMode: "both", sleepWeight: "high", morningReminderTime: "08:00", eveningReminderTime: "21:30",
         therapySessions: 0, therapyNote: "", lapsePlan: "", ...base.settings };
     if (base.settings.therapySessions === undefined)
         base.settings.therapySessions = 0;
@@ -476,6 +476,10 @@ function migrate(old) {
         base.settings.therapyNote = "";
     if (base.settings.lapsePlan === undefined)
         base.settings.lapsePlan = "";
+    /* sleepWeight used to be a bare number (always 2, no UI to change it) — move
+       existing installs onto the same tier scale every other item already uses */
+    if (typeof base.settings.sleepWeight === "number" || base.settings.sleepWeight === undefined)
+        base.settings.sleepWeight = "high";
     base.wetDreams = base.wetDreams || [];
     base.items = (base.items || []).filter((i) => i.id !== "latescreen");
     const NEW_BUILTIN_IDS = ["contentAccess", "checkout", "recoveryLow", "sleepLow", "purposeLow", "purposeHigh", "accountabilityGap", "urgeSurvivalBonus", "sickFlag", "travelFlag"];
@@ -637,7 +641,7 @@ function vigourForDay(day, date, items, settings) {
         done += 2 * (taken / sups.length);
     }
     /* sleep score contributes proportionally once logged */
-    const sw = settings.sleepWeight === undefined ? 2 : settings.sleepWeight;
+    const sw = W_ADH[settings.sleepWeight] || W_ADH.high;
     if (sw > 0 && d.sleep !== null && d.sleep !== undefined && d.sleep !== "") {
         total += sw;
         done += sw * Math.max(0, Math.min(1, Number(d.sleep) / 100));
@@ -1980,6 +1984,10 @@ function App() {
                 React.createElement(Card, null,
                     React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "Written now, while it\u2019s calm. This is what Bull shows you instead of a scoreboard when you log a lapse \u2014 the spiral comes from how a slip gets read, not from the slip."),
                     React.createElement("textarea", { value: data.settings.lapsePlan || "", onChange: (e) => setSetting("lapsePlan", e.target.value), rows: 4, placeholder: "What I do next: water, shower, get outside, message\u2026", className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600 resize-none" })),
+                React.createElement(SectionLabel, null, "Sleep Weight"),
+                React.createElement(Card, null,
+                    React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much the Sleep Score counts toward Vigour \u2014 same Low/Med/High/V.High scale as every checklist item. Most testosterone release happens during sleep, so it earns real weight by default."),
+                    React.createElement(Seg, { value: data.settings.sleepWeight || "high", allowClear: false, onChange: (v) => v && setSetting("sleepWeight", v), options: WEIGHT_OPTS })),
                 React.createElement(SectionLabel, null, "Therapy Cadence"),
                 React.createElement(Card, null,
                     React.createElement(Seg, { value: data.settings.therapistEveryWeeks, allowClear: false, onChange: (v) => v && setSetting("therapistEveryWeeks", v), options: [{ v: 1, label: "Weekly" }, { v: 2, label: "Fortnightly" }, { v: 4, label: "Monthly" }] }),
