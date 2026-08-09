@@ -944,7 +944,7 @@ function SplashFruit({ sfx, reg, greg }) {
                                     React.createElement("ellipse", { cx: 60, cy: 66, rx: 3.2, ry: 6.5, fill: "#f7e2ae", opacity: 0.9, transform: "rotate(18 60 66)" }),
                                     React.createElement("ellipse", { cx: 43, cy: 44, rx: 1.6, ry: 3.8, fill: "#f7e2ae", opacity: 0.25, transform: "rotate(-10 43 44)" }))));
 }
-function Splash({ vigour, risk, cleanPct, onDone }) {
+function Splash({ vigour, risk, cleanPct, cleanDelta, onDone }) {
     const [on, setOn] = useState(false);
     const [exiting, setExiting] = useState(false);
     const exitRef = useRef(false);
@@ -1044,7 +1044,13 @@ function Splash({ vigour, risk, cleanPct, onDone }) {
                 React.createElement("div", { className: "bsdivider" }),
                 React.createElement("div", { className: "stat" }, React.createElement("div", { className: "num" }, riskDisp), React.createElement("div", { className: "lbl" }, "Risk \u00B7 30d")),
                 React.createElement("div", { className: "bsdivider" }),
-                React.createElement("div", { className: "stat" }, React.createElement("div", { className: "num" }, cleanDisp), React.createElement("div", { className: "lbl" }, "Clean \u00B7 30d"))),
+                React.createElement("div", { className: "stat" },
+                    React.createElement("div", { className: "num" }, cleanDisp),
+                    React.createElement("div", { className: "lbl" }, "Clean \u00B7 30d"),
+                    /* direction, same model as the header — a bare percentage doesn't say
+                       whether it's moving */
+                    cleanDelta !== null && cleanDelta !== undefined && cleanDelta !== 0 && React.createElement("div", { className: "lbl", style: { color: cleanDelta > 0 ? "#5c8a3c" : "#b62f2b", marginTop: 2 } },
+                        (cleanDelta > 0 ? "\u2191" : "\u2193") + Math.abs(cleanDelta) + "%"))),
             React.createElement("div", { className: "hype" }, hype))));
 }
 /* ---------- breathe overlay ---------- */
@@ -1201,6 +1207,18 @@ function App() {
     const [showMonth, setShowMonth] = useState(false);
     const [addForm, setAddForm] = useState({ label: "", list: "prev", kind: "risk", weight: "med", vigourWeight: "low", bucket: "test", daily: true, days: [] });
     const saveTimer = useRef(null);
+    /* Auto-count a session once its booked time passes; the +/- controls stay so a
+       cancelled session can be corrected rather than silently drifting.
+       MUST sit above the `if (!data)` early return — a hook placed after it is skipped
+       on the first render and appears on the next, which changes the hook count and
+       throws (blank screen). */
+    useEffect(() => {
+        if (!data || !data.settings)
+            return;
+        const next = data.settings.nextCheckin;
+        if (next && next < Date.now() && data.settings.countedCheckin !== next)
+            persist({ ...data, settings: { ...data.settings, therapySessions: (data.settings.therapySessions || 0) + 1, countedCheckin: next } });
+    }, [data && data.settings && data.settings.nextCheckin]);
     useEffect(() => {
         (async () => {
             let loaded = migrate(await storageGet());
@@ -1340,21 +1358,16 @@ function App() {
             }
         });
         const spanDays = Math.min(30, Math.max(1, Math.floor((Date.now() - data.firstUse) / DAY_MS) + 1));
-        const relIn30 = new Set(data.relapses.filter((r) => r.ts >= from).map((r) => dateKey(new Date(r.ts))));
         return {
             vigour: ht ? Math.round(pctFrom(hd, ht)) : Math.round(vigourPct),
             risk: rN ? Math.round(rSum / rN) : Math.round(risk),
-            clean: Math.round((100 * (spanDays - relIn30.size)) / spanDays),
+            /* same helper the header uses, so the two can never drift apart */
+            clean: cleanPct,
+            cleanDelta: cleanDelta,
         };
     })();
     /* Auto-count a session once its booked time passes; the +/- controls stay so a
        cancelled session can be corrected rather than silently drifting. */
-    useEffect(() => {
-        const next = data && data.settings && data.settings.nextCheckin;
-        if (next && next < Date.now() && !data.settings.countedCheckin) {
-            persist({ ...data, settings: { ...data.settings, therapySessions: (data.settings.therapySessions || 0) + 1, countedCheckin: next } });
-        }
-    }, [data && data.settings && data.settings.nextCheckin]);
     const logUrge = () => { persist({ ...data, urges: [...data.urges, { ts: Date.now() }] }); setBreathing(true); };
     /* Rules are built backwards from what actually happened rather than planned in
        advance — captured after an urge passes, then reflected back when the same
@@ -1604,7 +1617,7 @@ function App() {
         React.createElement("div", { className: "bull-energy" }),
         React.createElement("div", { className: "bull-danger" + (ambient.tense ? " tense" : "") }),
         showMonth && React.createElement(MonthView, { data: data, items: items, settings: data.settings, onPick: (off) => { setViewOffset(off); setView("today"); }, onClose: () => setShowMonth(false) }),
-        showSplash && data && React.createElement(Splash, { vigour: splashAvgs.vigour, risk: splashAvgs.risk, cleanPct: splashAvgs.clean, onDone: () => setShowSplash(false) }),
+        showSplash && data && React.createElement(Splash, { vigour: splashAvgs.vigour, risk: splashAvgs.risk, cleanPct: splashAvgs.clean, cleanDelta: splashAvgs.cleanDelta, onDone: () => setShowSplash(false) }),
         capture && React.createElement("div", { className: "fixed inset-0 z-50 flex items-end justify-center", style: { background: "rgba(42,36,25,0.45)" }, onClick: () => setCapture(null) },
             React.createElement("div", { onClick: (e) => e.stopPropagation(), className: "w-full max-w-[430px] rounded-t-3xl p-5 pb-8", style: { background: "#faf6ef" } },
                 React.createElement("div", { className: "font-serif text-lg text-[#2a2419]" }, "That one passed"),
