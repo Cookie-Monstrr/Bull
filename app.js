@@ -1559,9 +1559,12 @@ function App() {
                 React.createElement("div", null,
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Name"),
                     React.createElement("input", { type: "text", value: item.label, onChange: (e) => updateItem(item.id, { label: e.target.value }), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" })),
-                item.list === "prev" && editable && (React.createElement("div", null,
+                item.list !== "prime" && editable && (React.createElement("div", null,
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, "Type"),
-                    React.createElement(Seg, { value: item.kind, allowClear: false, onChange: (v) => v && updateItem(item.id, { kind: v }), options: [{ v: "risk", label: "Risk", tone: "risk" }, { v: "habit", label: "Protective", tone: "teal" }] }))),
+                    React.createElement(Seg, { value: item.kind, allowClear: false, onChange: (v) => v && updateItem(item.id, { kind: v }), options: [{ v: "risk", label: "Risk", tone: "risk" }, { v: "habit", label: "Protective", tone: "teal" }] }),
+                    dual && React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-1.5 leading-relaxed" }, item.kind === "risk"
+                        ? "Risk: doing it raises Risk and costs Vigour. Avoiding it earns Vigour."
+                        : "Protective: doing it lowers Risk and earns Vigour."))),
                 React.createElement("div", null,
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172] mb-1.5" }, dual ? "Weight \u2014 Prevention" : "Weight"),
                     React.createElement(Seg, { value: item.weight, allowClear: false, onChange: (v) => v && updateItem(item.id, { weight: v }), options: WEIGHT_OPTS })),
