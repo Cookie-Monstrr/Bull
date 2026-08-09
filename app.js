@@ -394,6 +394,9 @@ const DEFAULT_SETTINGS = {
     supplements: ["Zinc", "Magnesium", "Vitamin D"],
     therapistEveryWeeks: 2,
     nextCheckin: null,
+    therapySessions: 0,
+    therapyNote: "",
+    lapsePlan: "",
     fastMode: "both",
     sleepWeight: 2,
     morningReminderTime: "08:00",
@@ -401,7 +404,7 @@ const DEFAULT_SETTINGS = {
 };
 const emptyDay = () => ({
     checks: {}, access: null, checkout: null,
-    intentionText: "", intentionSet: false, purposeRating: null,
+    intentionText: "", intentionWhen: "", intentionWhere: "", intentionSet: false, purposeRating: null,
     recovery: null, sleep: null, hrv: null, strain: null,
     supplementsTaken: {},
     sick: false, travelling: false,
@@ -440,7 +443,7 @@ function migrate(old) {
                 checks.fasting = true;
             days[k] = {
                 checks, access: d.access ?? null, checkout: d.checkout ?? null,
-                intentionText: d.intentionText || "", intentionSet: !!d.intentionSet,
+                intentionText: d.intentionText || "", intentionWhen: d.intentionWhen || "", intentionWhere: d.intentionWhere || "", intentionSet: !!d.intentionSet,
                 purposeRating: d.purposeRating ?? null,
                 recovery: d.recovery ?? null, sleep: d.sleep ?? null, steps: d.steps ?? null,
                 supplementsTaken: d.supplementsTaken || {},
@@ -460,7 +463,19 @@ function migrate(old) {
         const { lastTherapistCheckin, ...rest } = base.settings;
         base.settings = { ...rest, nextCheckin: base.settings.nextCheckin ?? null };
     }
-    base.settings = { fastMode: "both", sleepWeight: 2, morningReminderTime: "08:00", eveningReminderTime: "21:30", ...base.settings };
+    /* Runs for EVERY install, not just legacy ones — an existing user reaching this
+       release has none of these keys, and rules must be an array before Patterns
+       reads .length off it. Spread order puts saved values last so nothing is clobbered. */
+    if (!Array.isArray(base.rules))
+        base.rules = [];
+    base.settings = { fastMode: "both", sleepWeight: 2, morningReminderTime: "08:00", eveningReminderTime: "21:30",
+        therapySessions: 0, therapyNote: "", lapsePlan: "", ...base.settings };
+    if (base.settings.therapySessions === undefined)
+        base.settings.therapySessions = 0;
+    if (base.settings.therapyNote === undefined)
+        base.settings.therapyNote = "";
+    if (base.settings.lapsePlan === undefined)
+        base.settings.lapsePlan = "";
     base.wetDreams = base.wetDreams || [];
     base.items = (base.items || []).filter((i) => i.id !== "latescreen");
     const NEW_BUILTIN_IDS = ["contentAccess", "checkout", "recoveryLow", "sleepLow", "purposeLow", "purposeHigh", "accountabilityGap", "urgeSurvivalBonus", "sickFlag", "travelFlag"];
@@ -929,7 +944,7 @@ function SplashFruit({ sfx, reg, greg }) {
                                     React.createElement("ellipse", { cx: 60, cy: 66, rx: 3.2, ry: 6.5, fill: "#f7e2ae", opacity: 0.9, transform: "rotate(18 60 66)" }),
                                     React.createElement("ellipse", { cx: 43, cy: 44, rx: 1.6, ry: 3.8, fill: "#f7e2ae", opacity: 0.25, transform: "rotate(-10 43 44)" }))));
 }
-function Splash({ vigour, risk, cleanPct, streak, onDone }) {
+function Splash({ vigour, risk, cleanPct, onDone }) {
     const [on, setOn] = useState(false);
     const [exiting, setExiting] = useState(false);
     const exitRef = useRef(false);
@@ -1092,7 +1107,7 @@ const GUIDE = [
             { t: "Physiological Sigh", ev: "strong", lead: "The fastest evidenced way to drop arousal in real time.",
                 rows: [["Do", "Two nasal inhales \u2014 one full, one short sip on top \u2014 then a long slow mouth exhale, roughly twice the inhale."], ["Why", "The double inhale reopens collapsed alveoli and offloads CO2 fast. Exhales longer than inhales shift you toward parasympathetic tone."], ["Reps", "Three minutes is enough. Longer isn't better."]] },
             { t: "After A Slip", ev: "strong", lead: "The slip doesn't cause the binge. The thought \u201calready ruined\u201d does.",
-                rows: [["Why", "The abstinence violation effect is one of the best-replicated findings in relapse research \u2014 the spiral comes from the interpretation, not the act."], ["Do", "Log it honestly. Water, shower, get outside, tell your accountability partner."], ["Avoid", "Recalculating the damage. One data point barely moves the percentage."]] },
+                rows: [["Why", "The abstinence violation effect is one of the best-replicated findings in relapse research \u2014 a lapse becomes a relapse through how it gets read, not through the act."], ["Do", "Log it honestly. Your written plan appears instead of a scoreboard \u2014 follow it."], ["By design", "Bull has no streak counter. A number resetting to zero IS the all-or-nothing framing that drives the spiral, so it tracks a 30-day trend instead."], ["Avoid", "Recalculating the damage. One day moves the 30-day figure by a few percent."]] },
         ] },
     { g: "Prevention", items: [
             { t: "Content Access", ev: "strong", lead: "The strongest lever here, and the least ambiguous.",
@@ -1107,14 +1122,14 @@ const GUIDE = [
                 rows: [["Not true", "Cold exposure does not raise testosterone. That claim isn't supported."], ["Does work", "A large sustained noradrenaline rise \u2014 mood and alertness lift for hours."], ["Also", "A genuine voluntary-discomfort rep, which is its own reason to keep it."]] },
             { t: "Nasal Rinse", ev: "moderate", lead: "Scores on both. Airway on one side, nitric oxide on the other.",
                 rows: [["Prevention", "A clear airway means better sleep, and poor sleep is one of your strongest vulnerability drivers."], ["Vigour", "The paranasal sinuses are the body's main nitric oxide reservoir; nasal breathing draws it into the airway."], ["Safety", "Never rinse with untreated tap water."]] },
-            { t: "Morning Intention", ev: "strong", lead: "One concrete purposeful thing, set before the day starts.",
-                rows: [["Why", "Implementation intentions \u2014 deciding in advance what you'll do and when \u2014 are among the most replicated behaviour-change findings there are."], ["Do", "Be specific. The specificity does the work, not the sentiment."]] },
+            { t: "Morning Intention", ev: "strong", lead: "One concrete thing, anchored to a when and a where.",
+                rows: [["Why", "Implementation intentions \u2014 deciding in advance what you'll do, when and where \u2014 are among the most replicated findings in behaviour-change science (d\u22480.65 across 94 studies)."], ["Do", "Fill the when and where fields. An unanchored goal is the weak form; naming the situation is what carries the effect."], ["Not", "The wording doesn't matter. The anchor does."]] },
             { t: "Evening Review \u2014 Purpose", ev: "moderate", lead: "Rated 1\u20135, and it moves the score in both directions.",
                 rows: [["Why", "Meaninglessness and boredom are consistently reported antecedents to compulsive use."], ["Scoring", "Low-purpose days raise Risk; high-purpose days lower it."], ["Do", "Rate it fast. A considered rating is usually a rationalised one."]] },
-            { t: "Accountability Check-In", ev: "strong", lead: "Booked and dated, not vague.",
-                rows: [["Why", "Accountability decays with distance."], ["Scoring", "Risk rises when nothing is booked, when a check-in is overdue, or when the next is beyond your chosen window."], ["Set", "Frequency is configurable in Settings."]] },
+            { t: "Therapy", ev: "strong", lead: "The best-evidenced intervention in this whole field is a therapist, not an app.",
+                rows: [["Why", "ACT and CBT carry the strongest support for problematic use \u2014 large effect sizes in meta-analysis, though the field is young and RCT-poor."], ["Scoring", "Risk rises only when you're overdue by your OWN cadence, set in Settings \u2014 a correct monthly rhythm isn't penalised."], ["Course", "Structured protocols run roughly 12 weekly sessions; weekly while actively working, stretching out for maintenance."], ["Note", "Use the note field for what to raise next time \u2014 the thing you noticed on a bad day rarely survives to the appointment otherwise."]] },
             { t: "Urges Survived", ev: "strong", lead: "The only item that rewards difficulty.",
-                rows: [["Scoring", "Each logged urge you ride out lowers Risk, up to a daily cap."], ["Why", "A day with three survived urges is a stronger day than one with none, and the score is built to say so."]] },
+                rows: [["Scoring", "Each logged urge you ride out lowers Risk, up to a daily cap."], ["Why", "A day with three survived urges is a stronger day than one with none, and the score is built to say so."], ["After", "Note what set it off and what you did instead \u2014 those pairs build My Rules on the Patterns page, drawn from what actually worked for you rather than from a generic list."]] },
             { t: "Recovery Below 40%", ev: "moderate", lead: "Automatic, from your Recovery Score \u2014 no judgement required from you.",
                 rows: [["Why", "Low recovery means depleted self-regulation \u2014 the same resource that declines urges."], ["Note", "The input most worth automating, because it needs only data."]] },
             { t: "Sick / Travelling Flags", ev: "moderate", lead: "Two independent day flags that count as risk in their own right.",
@@ -1170,6 +1185,7 @@ function App() {
     const [data, setData] = useState(null);
     const [view, setView] = useState("today");
     const [breathing, setBreathing] = useState(false);
+    const [capture, setCapture] = useState(null);
     const [confirmRelapse, setConfirmRelapse] = useState(false);
     const [confirmWetDream, setConfirmWetDream] = useState(false);
     const [justRelapsed, setJustRelapsed] = useState(false);
@@ -1233,7 +1249,10 @@ function App() {
             return "setup";
         if (next < Date.now())
             return "overdue";
-        const windowMs = (data.settings.therapistEveryWeeks || 2) * 7 * DAY_MS;
+        /* "Too far out" is judged against YOUR cadence, not a fixed number the app picked —
+           otherwise a correct monthly rhythm reads as permanent neglect. Grace of a few
+           days so a rescheduled session doesn't immediately penalise you. */
+        const windowMs = ((data.settings.therapistEveryWeeks || 2) * 7 + 4) * DAY_MS;
         return next - Date.now() > windowMs ? "outside" : "scheduled";
     })();
     const accountabilityPenalty = therapistStatus === "setup" || therapistStatus === "overdue" ? 15
@@ -1243,10 +1262,20 @@ function App() {
     const vigourPct = pctFrom(h.done, h.total);
     const loggedRelapse = data.relapses.length ? Math.max(...data.relapses.map((r) => r.ts)) : null;
     const lastRelapse = loggedRelapse || null;
-    const streak = Math.max(0, Math.floor((Date.now() - (lastRelapse || data.firstUse)) / DAY_MS));
-    const windowDays = Math.min(90, Math.max(1, Math.floor((Date.now() - data.firstUse) / DAY_MS) + 1));
-    const relDaySet = new Set(data.relapses.filter((r) => r.ts >= Date.now() - windowDays * DAY_MS).map((r) => dateKey(new Date(r.ts))));
-    const cleanPct = Math.round((100 * (windowDays - relDaySet.size)) / windowDays);
+    /* Clean% over a FIXED rolling 30 days, plus the previous 30 for direction.
+       A fixed window is what makes the number comparable week to week; direction is
+       what answers "is this working" — which a bare percentage never does. */
+    const cleanOver = (endTs, days) => {
+        const startTs = endTs - days * DAY_MS;
+        const span = Math.max(1, Math.min(days, Math.floor((endTs - data.firstUse) / DAY_MS) + 1));
+        const hits = new Set(data.relapses.filter((r) => r.ts > startTs && r.ts <= endTs).map((r) => dateKey(new Date(r.ts))));
+        return Math.round((100 * Math.max(0, span - hits.size)) / span);
+    };
+    const windowDays = 30;
+    const cleanPct = cleanOver(Date.now(), 30);
+    const prevCleanPct = cleanOver(Date.now() - 30 * DAY_MS, 30);
+    const hasPrev = Date.now() - data.firstUse > 31 * DAY_MS;
+    const cleanDelta = hasPrev ? cleanPct - prevCleanPct : null;
     /* ---------- ambient mood: driven by 30-day rolling averages, flagged days excluded ---------- */
     const ambient = (() => {
         const from = Date.now() - 30 * DAY_MS;
@@ -1318,7 +1347,39 @@ function App() {
             clean: Math.round((100 * (spanDays - relIn30.size)) / spanDays),
         };
     })();
+    /* Auto-count a session once its booked time passes; the +/- controls stay so a
+       cancelled session can be corrected rather than silently drifting. */
+    useEffect(() => {
+        const next = data && data.settings && data.settings.nextCheckin;
+        if (next && next < Date.now() && !data.settings.countedCheckin) {
+            persist({ ...data, settings: { ...data.settings, therapySessions: (data.settings.therapySessions || 0) + 1, countedCheckin: next } });
+        }
+    }, [data && data.settings && data.settings.nextCheckin]);
     const logUrge = () => { persist({ ...data, urges: [...data.urges, { ts: Date.now() }] }); setBreathing(true); };
+    /* Rules are built backwards from what actually happened rather than planned in
+       advance — captured after an urge passes, then reflected back when the same
+       trigger shows up. Caveat worth remembering: the evidence is for plans formed
+       BEFORE the situation; deriving them from logged events keeps the if-then
+       format but is an extrapolation. */
+    const rules = Array.isArray(data.rules) ? data.rules : [];
+    const addRule = (trigger, response) => {
+        if (!trigger && !response)
+            return;
+        const existing = rules.findIndex((r) => r.trigger === trigger && r.response === response);
+        const next = existing !== -1
+            ? rules.map((r, i) => (i === existing ? { ...r, count: (r.count || 1) + 1, ts: Date.now() } : r))
+            : [...rules, { trigger, response, count: 1, ts: Date.now() }];
+        persist({ ...data, rules: next });
+    };
+    const removeRule = (i) => persist({ ...data, rules: rules.filter((_, n) => n !== i) });
+    const ruleTriggers = Array.from(new Set([
+        ...items.filter((i) => isPrev(i) && i.kind === "risk").map((i) => i.label),
+        ...rules.map((r) => r.trigger),
+    ].filter(Boolean)));
+    const ruleResponses = Array.from(new Set([
+        "Left the room", "Went outside", "Cold water", "Called someone", "Trained",
+        ...rules.map((r) => r.response),
+    ].filter(Boolean)));
     const logRelapse = (type) => {
         const ts = isToday ? Date.now() : new Date(vk + "T12:00:00").getTime();
         persist({ ...data, relapses: [...data.relapses, { ts, type: type || "orgasm" }] });
@@ -1393,16 +1454,10 @@ function App() {
             orgasms: data.relapses.filter((r) => r.ts >= from && (r.type || "orgasm") === "orgasm").length,
             edges: data.relapses.filter((r) => r.ts >= from && r.type === "edge").length,
             wetDreams: (data.wetDreams || []).filter((w) => w.ts >= from).length,
+            prevRelapses: from === 0 ? null : data.relapses.filter((r) => r.ts >= from - (nowTs - from) && r.ts < from).length,
+            hasPrev: from !== 0 && data.firstUse <= from - (nowTs - from),
         };
     };
-    const bestStreak = (() => {
-        const relapseTs = data.relapses.map((r) => r.ts);
-        const pts = [data.firstUse, ...relapseTs.sort((a, b) => a - b), Date.now()];
-        let best = 0;
-        for (let i = 1; i < pts.length; i++)
-            best = Math.max(best, Math.floor((pts[i] - pts[i - 1]) / DAY_MS));
-        return best;
-    })();
     const CORRELATION_FACTORS = [
         ...items.filter((i) => isPrev(i) && i.kind === "risk").map((i) => ({ label: i.label, test: (d) => d.checks && d.checks[i.id] === true })),
         ...items.filter((i) => isPrev(i) && i.kind === "habit").map((i) => ({ label: "Skipped: " + i.label, test: (d) => !(d.checks && d.checks[i.id] === true) })),
@@ -1549,8 +1604,28 @@ function App() {
         React.createElement("div", { className: "bull-energy" }),
         React.createElement("div", { className: "bull-danger" + (ambient.tense ? " tense" : "") }),
         showMonth && React.createElement(MonthView, { data: data, items: items, settings: data.settings, onPick: (off) => { setViewOffset(off); setView("today"); }, onClose: () => setShowMonth(false) }),
-        showSplash && data && React.createElement(Splash, { vigour: splashAvgs.vigour, risk: splashAvgs.risk, cleanPct: splashAvgs.clean, streak: streak, onDone: () => setShowSplash(false) }),
-        breathing && React.createElement(Breathe, { purposeText: data.settings.purposeText, onClose: () => setBreathing(false) }),
+        showSplash && data && React.createElement(Splash, { vigour: splashAvgs.vigour, risk: splashAvgs.risk, cleanPct: splashAvgs.clean, onDone: () => setShowSplash(false) }),
+        capture && React.createElement("div", { className: "fixed inset-0 z-50 flex items-end justify-center", style: { background: "rgba(42,36,25,0.45)" }, onClick: () => setCapture(null) },
+            React.createElement("div", { onClick: (e) => e.stopPropagation(), className: "w-full max-w-[430px] rounded-t-3xl p-5 pb-8", style: { background: "#faf6ef" } },
+                React.createElement("div", { className: "font-serif text-lg text-[#2a2419]" }, "That one passed"),
+                React.createElement("div", { className: "text-xs text-[#8a8172] mt-1 mb-4 leading-relaxed" }, "Two taps, both optional \\u2014 this is how Bull learns your rules."),
+                React.createElement("div", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285] font-bold mb-2" }, "What set it off?"),
+                React.createElement("div", { className: "flex flex-wrap gap-2 mb-4" }, ruleTriggers.slice(0, 10).map((t) => React.createElement("button", {
+                    key: t, onClick: () => setCapture((c) => ({ ...c, trigger: c.trigger === t ? "" : t })),
+                    className: "px-3 py-1.5 rounded-full text-xs border transition-colors " + (capture.trigger === t ? "font-bold text-neutral-950" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"),
+                    style: capture.trigger === t ? { background: AMBER, borderColor: AMBER } : undefined,
+                }, t))),
+                React.createElement("div", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285] font-bold mb-2" }, "What did you do instead?"),
+                React.createElement("div", { className: "flex flex-wrap gap-2 mb-3" }, ruleResponses.slice(0, 10).map((t) => React.createElement("button", {
+                    key: t, onClick: () => setCapture((c) => ({ ...c, response: c.response === t ? "" : t })),
+                    className: "px-3 py-1.5 rounded-full text-xs border transition-colors " + (capture.response === t ? "font-bold text-neutral-950" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"),
+                    style: capture.response === t ? { background: TEAL, borderColor: TEAL } : undefined,
+                }, t))),
+                React.createElement("input", { value: capture.response, onChange: (e) => setCapture((c) => ({ ...c, response: e.target.value })), placeholder: "\\u2026or type it", className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600 mb-3" }),
+                React.createElement("div", { className: "flex gap-2" },
+                    React.createElement("button", { onClick: () => { addRule(capture.trigger, capture.response); setCapture(null); }, className: "flex-1 py-3 rounded-xl text-neutral-950 text-sm font-bold uppercase tracking-wide", style: { background: AMBER } }, "Save"),
+                    React.createElement("button", { onClick: () => setCapture(null), className: "px-5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-sm uppercase" }, "Skip")))),
+        breathing && React.createElement(Breathe, { purposeText: data.settings.purposeText, onClose: () => { setBreathing(false); setCapture({ trigger: "", response: "" }); } }),
         React.createElement("div", { className: "max-w-md mx-auto px-4", style: { paddingTop: "calc(env(safe-area-inset-top, 0px) + 24px)" } },
             view === "today" && (React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "flex items-center gap-1.5 mb-1" },
@@ -1572,9 +1647,11 @@ function App() {
                             React.createElement(Flame, { size: 16 }),
                             React.createElement("span", { className: "font-mono text-sm font-bold" },
                                 cleanPct,
-                                "% CLEAN \u00B7 ",
-                                windowDays,
-                                "D"))),
+                                "% CLEAN \u00B7 30D"),
+                            cleanDelta !== null && cleanDelta !== 0 && React.createElement("span", { className: "font-mono text-xs font-bold", style: { color: cleanDelta > 0 ? "#5c8a3c" : "#b62f2b" } },
+                                cleanDelta > 0 ? "\u2191" : "\u2193",
+                                Math.abs(cleanDelta),
+                                "%"))),
                     React.createElement("div", { className: "flex gap-3 shrink-0" },
                         React.createElement(BandArt, { value: risk, dir: "devil", size: 62, label: "Risk", fallback: React.createElement(DevilRisk, { risk: risk, size: 62 }) }),
                         React.createElement(BandArt, { value: vigourPct, dir: "physique", size: 62, label: "Vigour", fallback: React.createElement(VigourFigure, { pct: vigourPct, size: 62 }) }))),
@@ -1601,10 +1678,17 @@ function App() {
                 React.createElement(SectionLabel, null, "Morning Intention"),
                 React.createElement(Card, null, today.intentionSet ? (React.createElement("div", { className: "flex items-start gap-2" },
                     React.createElement(Check, { size: 18, style: { color: TEAL }, className: "mt-0.5 shrink-0" }),
-                    React.createElement("div", { className: "text-sm text-[#4a4335]" }, today.intentionText || "Intention set."))) : (React.createElement("div", { className: "flex gap-2" },
-                    React.createElement("input", { value: today.intentionText, onChange: (e) => setDay("intentionText", e.target.value), placeholder: "One purposeful thing today\u2026", className: "flex-1 rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
-                    React.createElement("button", { onClick: () => setDay("intentionSet", true), className: "px-4 rounded-xl text-neutral-950 text-sm font-bold uppercase", style: { background: TEAL } }, "Set")))),
-                React.createElement(SectionLabel, null, "Accountability"),
+                    React.createElement("div", null,
+                        React.createElement("div", { className: "text-sm text-[#4a4335]" }, today.intentionText || "Intention set."),
+                        (today.intentionWhen || today.intentionWhere) && React.createElement("div", { className: "text-xs text-[#8a8172] mt-0.5" }, [today.intentionWhen, today.intentionWhere].filter(Boolean).join(" \u00B7 ")),
+                        React.createElement("button", { onClick: () => setDay("intentionSet", false), className: "text-[10px] uppercase tracking-wide text-[#9a9285] underline mt-1" }, "Edit")))) : (React.createElement("div", null,
+                    React.createElement("input", { value: today.intentionText, onChange: (e) => setDay("intentionText", e.target.value), placeholder: "One purposeful thing today\u2026", className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
+                    React.createElement("div", { className: "flex gap-2 mt-2" },
+                        React.createElement("input", { value: today.intentionWhen, onChange: (e) => setDay("intentionWhen", e.target.value), placeholder: "When\u2026", className: "flex-1 min-w-0 rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
+                        React.createElement("input", { value: today.intentionWhere, onChange: (e) => setDay("intentionWhere", e.target.value), placeholder: "Where\u2026", className: "flex-1 min-w-0 rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" })),
+                    React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-1.5 leading-relaxed" }, "Naming when and where is what makes this work \u2014 not the wording."),
+                    React.createElement("button", { onClick: () => setDay("intentionSet", true), className: "w-full mt-2 py-2.5 rounded-xl text-neutral-950 text-sm font-bold uppercase", style: { background: TEAL } }, "Set")))),
+                React.createElement(SectionLabel, null, "Therapy"),
                 React.createElement(Card, { className: therapistStatus !== "scheduled" ? "border border-amber-500/50" : "" },
                     React.createElement("div", { className: "text-xs uppercase tracking-widest font-bold mb-2", style: { color: therapistStatus === "scheduled" ? TEAL : CAUTION } }, therapistStatus === "setup" ? "Nothing Booked"
                         : therapistStatus === "overdue" ? "Overdue"
@@ -1615,7 +1699,18 @@ function App() {
                                 const v = e.target.value;
                                 setSetting("nextCheckin", v ? new Date(v).getTime() : null);
                             }, className: "flex-1 rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" }),
-                        data.settings.nextCheckin && (React.createElement("button", { onClick: () => setSetting("nextCheckin", null), className: "px-3 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-xs uppercase tracking-wide" }, "Clear")))),
+                        data.settings.nextCheckin && (React.createElement("button", { onClick: () => setSetting("nextCheckin", null), className: "px-3 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-xs uppercase tracking-wide" }, "Clear"))),
+                    React.createElement("div", { className: "flex items-center justify-between mt-3 pt-3", style: { borderTop: "1px solid rgba(42,36,25,0.10)" } },
+                        React.createElement("div", null,
+                            React.createElement("div", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285] font-bold" }, "Session"),
+                            React.createElement("div", { className: "font-mono text-lg font-bold text-[#2a2419]" }, data.settings.therapySessions || 0)),
+                        React.createElement("div", { className: "flex gap-1.5" },
+                            React.createElement("button", { onClick: () => setSetting("therapySessions", Math.max(0, (data.settings.therapySessions || 0) - 1)), className: "w-9 h-9 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-sm font-bold" }, "\u2212"),
+                            React.createElement("button", { onClick: () => setSetting("therapySessions", (data.settings.therapySessions || 0) + 1), className: "w-9 h-9 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-sm font-bold" }, "+"))),
+                    React.createElement("div", { className: "mt-3" },
+                        React.createElement("div", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285] font-bold mb-1.5" }, "Raise Next Session"),
+                        React.createElement("textarea", { value: data.settings.therapyNote || "", onChange: (e) => setSetting("therapyNote", e.target.value), rows: 2, placeholder: "The thing you noticed on a bad day\u2026", className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600 resize-none" }),
+                        (data.settings.therapyNote || "").trim() && React.createElement("button", { onClick: () => setSetting("therapyNote", ""), className: "text-[10px] uppercase tracking-wide text-[#9a9285] underline mt-1" }, "Clear after session"))),
                 React.createElement(SectionLabel, null, "Risk Factors Today"),
                 React.createElement(TileGrid, null, prevRisks.map((it) => (React.createElement(Tile, { key: it.id, mode: "risk", label: it.label, value: today.checks[it.id] === undefined ? null : today.checks[it.id], onChange: (v) => setCheck(it.id, v) })))),
                 React.createElement(Rows, null,
@@ -1679,12 +1774,22 @@ function App() {
                         React.createElement("button", { onClick: () => logRelapse("orgasm"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide", style: { background: "#b62f2b" } }, "Orgasmed"),
                         React.createElement("button", { onClick: () => logRelapse("edge"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide", style: { background: "#c2701e" } }, "Edged Only")),
                     React.createElement("button", { onClick: () => setConfirmRelapse(false), className: "w-full py-2.5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-sm uppercase" }, "Cancel"))),
-                existingRelapse && (React.createElement(Card, { className: "mt-3" },
-                    React.createElement("div", { className: "text-xs uppercase tracking-widest font-bold mb-2 text-[#8a8172]" }, (isToday ? "Logged today \u2014 " : "Logged \u2014 ") + (existingRelapse.type === "edge" ? "Edged Only" : "Orgasmed")),
-                    React.createElement("div", { className: "flex gap-2 mb-2" },
-                        React.createElement("button", { onClick: () => editRelapseType("orgasm"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide transition-opacity " + (existingRelapse.type === "edge" ? "opacity-40" : ""), style: { background: "#b62f2b" } }, "Orgasmed"),
-                        React.createElement("button", { onClick: () => editRelapseType("edge"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide transition-opacity " + (existingRelapse.type === "orgasm" || !existingRelapse.type ? "opacity-40" : ""), style: { background: "#c2701e" } }, "Edged Only")),
-                    React.createElement("button", { onClick: removeRelapse, className: "w-full py-2.5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-sm uppercase" }, "Remove Log"))),
+                existingRelapse && (React.createElement(React.Fragment, null,
+                    /* The lapse plan owns this screen. A lapse becomes a relapse through
+                       the interpretation of it, not the act — so what's shown here is the
+                       plan written in a calm moment, not a scoreboard. */
+                    React.createElement(Card, { className: "mt-3", style: { background: "rgba(201,150,44,0.10)" } },
+                        React.createElement("div", { className: "text-xs uppercase tracking-widest font-bold mb-2", style: { color: "#8a6318" } }, "Your Plan"),
+                        React.createElement("div", { className: "text-sm text-[#4a4335] leading-relaxed whitespace-pre-line" }, data.settings.lapsePlan && data.settings.lapsePlan.trim()
+                            ? data.settings.lapsePlan
+                            : "One data point. It moves the 30-day number by a few percent \u2014 nothing more. Write your own plan in Settings for next time."),
+                        React.createElement("div", { className: "text-[11px] text-[#8a8172] mt-3 pt-3 leading-relaxed", style: { borderTop: "1px solid rgba(42,36,25,0.10)" } }, "Clean over 30 days is still ", cleanPct, "%. The day it happened is the day it happened \u2014 the rest of today is unchanged.")),
+                    React.createElement(Card, { className: "mt-2.5" },
+                        React.createElement("div", { className: "text-xs uppercase tracking-widest font-bold mb-2 text-[#8a8172]" }, (isToday ? "Logged today \u2014 " : "Logged \u2014 ") + (existingRelapse.type === "edge" ? "Edged Only" : "Orgasmed")),
+                        React.createElement("div", { className: "flex gap-2 mb-2" },
+                            React.createElement("button", { onClick: () => editRelapseType("orgasm"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide transition-opacity " + (existingRelapse.type === "edge" ? "opacity-40" : ""), style: { background: "#b62f2b" } }, "Orgasmed"),
+                            React.createElement("button", { onClick: () => editRelapseType("edge"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide transition-opacity " + (existingRelapse.type === "orgasm" || !existingRelapse.type ? "opacity-40" : ""), style: { background: "#c2701e" } }, "Edged Only")),
+                        React.createElement("button", { onClick: removeRelapse, className: "w-full py-2.5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-sm uppercase" }, "Remove Log")))),
                 isToday && confirmWetDream && (React.createElement(Card, { className: "mt-3" },
                     React.createElement("div", { className: "text-sm text-[#4a4335] mb-3" }, "Log a wet dream for today? Used only for Pattern correlation \u2014 same as relapses."),
                     React.createElement("div", { className: "flex gap-2" },
@@ -1706,24 +1811,33 @@ function App() {
                     React.createElement(Card, null,
                         React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Relapses"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold text-[#2a2419] mt-1" }, st.relapses),
-                        React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-1 tracking-wide" }, st.orgasms + " orgasm \u00B7 " + st.edges + " edged")),
+                        React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-1 tracking-wide" }, st.orgasms + " orgasm \u00B7 " + st.edges + " edged"),
+                        st.hasPrev && st.prevRelapses !== null && React.createElement("div", { className: "text-[10px] mt-0.5 tracking-wide font-bold", style: { color: st.relapses < st.prevRelapses ? "#5c8a3c" : st.relapses > st.prevRelapses ? "#b62f2b" : "#9a9285" } }, "was " + st.prevRelapses + " prev period")),
                     React.createElement(Card, null,
                         React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Wet Dreams"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold mt-1", style: { color: AMBER } }, st.wetDreams)),
                     React.createElement(Card, null,
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Clean"),
+                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Clean \u00B7 30d"),
                         React.createElement("div", { className: "font-mono text-2xl font-bold mt-1", style: { color: AMBER } },
                             cleanPct,
-                            "%")),
-                    React.createElement(Card, null,
-                        React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#8a8172]" }, "Best Streak"),
-                        React.createElement("div", { className: "font-mono text-2xl font-bold text-[#2a2419] mt-1" },
-                            bestStreak,
-                            "D"))),
+                            "%"),
+                        cleanDelta !== null && React.createElement("div", { className: "text-[10px] mt-1 tracking-wide font-bold", style: { color: cleanDelta > 0 ? "#5c8a3c" : cleanDelta < 0 ? "#b62f2b" : "#9a9285" } }, cleanDelta === 0 ? "level" : (cleanDelta > 0 ? "\u2191 " : "\u2193 ") + Math.abs(cleanDelta) + "% vs prev 30d"))),
                 React.createElement(SectionLabel, null, "Last 14 Days"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex gap-1.5 justify-between" }, last14.map((d) => (React.createElement("div", { key: d.k, title: d.k, className: "flex-1 h-9 rounded", style: { background: d.rel ? ROSE : !d.logged ? "#292524" : riskColor(d.score) } })))),
-                    React.createElement("div", { className: "text-xs text-[#8a8172] mt-2 uppercase tracking-wide" }, "Teal safe \u00B7 Amber caution \u00B7 Red risk/relapse \u00B7 Grey unlogged")),
+                    React.createElement("div", { className: "text-xs text-[#8a8172] mt-2 uppercase tracking-wide" }, "Green safe \u00B7 Amber caution \u00B7 Red risk/relapse \u00B7 Grey unlogged")),
+                React.createElement(SectionLabel, null, "My Rules"),
+                React.createElement(Card, null, rules.length === 0
+                    ? React.createElement("div", { className: "text-sm text-[#6f6757] leading-relaxed" }, "Builds itself. After you ride out an urge, note what set it off and what you did instead \u2014 those pairs land here.")
+                    : rules.slice().sort((a, b) => (b.count || 1) - (a.count || 1)).map((r, i) => React.createElement("div", { key: i, className: "flex items-start gap-2 py-2.5 border-b border-[rgba(42,36,25,0.09)] last:border-0" },
+                        React.createElement("div", { className: "flex-1" },
+                            React.createElement("div", { className: "text-sm text-[#332d20] leading-snug" },
+                                React.createElement("span", { className: "text-[#9a9285]" }, "If "),
+                                r.trigger || "an urge hits",
+                                React.createElement("span", { className: "text-[#9a9285]" }, " \u2192 "),
+                                r.response || "\u2014"),
+                            (r.count || 1) > 1 && React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-0.5 tracking-wide" }, "worked " + r.count + " times")),
+                        React.createElement("button", { onClick: () => removeRule(rules.indexOf(r)), className: "text-[#9a9285] shrink-0 px-1" }, React.createElement(Trash2, { size: 14 }))))),
                 React.createElement(SectionLabel, null, "Relapse Patterns"),
                 React.createElement(Card, null, correlations === null ? (React.createElement("div", { className: "text-sm text-[#6f6757]" }, "Unlocks after 3 logged relapses.")) : correlations.length === 0 ? (React.createElement("div", { className: "text-sm text-[#6f6757]" }, "Keep logging.")) : (correlations.map((c) => (React.createElement("div", { key: c.label, className: "py-2 border-b border-[rgba(42,36,25,0.10)] last:border-0" },
                     React.createElement("div", { className: "text-sm text-[#332d20] uppercase tracking-wide font-semibold" }, c.label),
@@ -1835,9 +1949,25 @@ function App() {
                         React.createElement("button", { onClick: () => { const v = newSup.trim(); if (v && !data.settings.supplements.includes(v))
                                 setSetting("supplements", [...data.settings.supplements, v]); setNewSup(""); }, className: "px-3 rounded-xl bg-neutral-200 text-neutral-950" },
                             React.createElement(Plus, { size: 16 })))),
-                React.createElement(SectionLabel, null, "Accountability Frequency"),
+                React.createElement(SectionLabel, null, "Daily Reminders"),
                 React.createElement(Card, null,
-                    React.createElement(Seg, { value: data.settings.therapistEveryWeeks, allowClear: false, onChange: (v) => v && setSetting("therapistEveryWeeks", v), options: [{ v: 1, label: "Weekly" }, { v: 2, label: "2 Wks" }, { v: 3, label: "3 Wks" }, { v: 4, label: "4 Wks" }] })),
+                    React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-3 leading-relaxed" }, "Downloads one calendar file that repeats daily forever \u2014 import once into Apple Calendar and it\u2019s done. Re-download only if you change the times."),
+                    React.createElement("div", { className: "flex gap-2 mb-3" },
+                        React.createElement("div", { className: "flex-1" },
+                            React.createElement("div", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285] font-bold mb-1.5" }, "Morning"),
+                            React.createElement("input", { type: "time", value: data.settings.morningReminderTime || "08:00", onChange: (e) => setSetting("morningReminderTime", e.target.value), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" })),
+                        React.createElement("div", { className: "flex-1" },
+                            React.createElement("div", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285] font-bold mb-1.5" }, "Evening"),
+                            React.createElement("input", { type: "time", value: data.settings.eveningReminderTime || "21:30", onChange: (e) => setSetting("eveningReminderTime", e.target.value), className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none text-[#2a2419]" }))),
+                    React.createElement("button", { onClick: () => downloadReminderIcs(data.settings), className: "w-full py-3 rounded-xl text-neutral-950 text-sm font-bold uppercase tracking-wide", style: { background: AMBER } }, "Download Reminders")),
+                React.createElement(SectionLabel, null, "Lapse Plan"),
+                React.createElement(Card, null,
+                    React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "Written now, while it\u2019s calm. This is what Bull shows you instead of a scoreboard when you log a lapse \u2014 the spiral comes from how a slip gets read, not from the slip."),
+                    React.createElement("textarea", { value: data.settings.lapsePlan || "", onChange: (e) => setSetting("lapsePlan", e.target.value), rows: 4, placeholder: "What I do next: water, shower, get outside, message\u2026", className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600 resize-none" })),
+                React.createElement(SectionLabel, null, "Therapy Cadence"),
+                React.createElement(Card, null,
+                    React.createElement(Seg, { value: data.settings.therapistEveryWeeks, allowClear: false, onChange: (v) => v && setSetting("therapistEveryWeeks", v), options: [{ v: 1, label: "Weekly" }, { v: 2, label: "Fortnightly" }, { v: 4, label: "Monthly" }] }),
+                    React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-2 leading-relaxed" }, "Risk only rises when you\u2019re overdue by your own cadence. Structured CBT/ACT courses run roughly 12 weekly sessions \u2014 weekly while actively working, stretching out for maintenance.")),
                 React.createElement(SectionLabel, null, "Data"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex gap-2 mb-3" },
