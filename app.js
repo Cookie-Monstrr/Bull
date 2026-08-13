@@ -252,7 +252,7 @@ function MonthView({ data, items, settings, onPick, onClose }) {
         const wet = wetKeys.has(k);
         const logged = !!rec && riskLogged(rec, items);
         const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
-        const rs = logged ? Math.round(riskScore({ ...emptyDay(), ...rec }, items, uc, !!relType)) : null;
+        const rs = logged ? Math.round(riskScore({ ...emptyDay(), ...rec }, items, uc, !!relType, 0, settings.intentionWeight)) : null;
         const vh = rec ? vigourForDay({ ...emptyDay(), ...rec }, d, items, settings) : null;
         const vp = vh && vh.total ? Math.round(pctFrom(vh.done, vh.total)) : null;
         const showBand = !future && vp !== null;
@@ -399,15 +399,18 @@ const DEFAULT_SETTINGS = {
     lapsePlan: "",
     fastMode: "both",
     sleepWeight: "high",
+    breathFirstInhale: 4.5,
+    intentionTemplates: [],
+    intentionWeight: "med",
     morningReminderTime: "08:00",
     eveningReminderTime: "21:30",
 };
 const emptyDay = () => ({
     checks: {}, access: null, checkout: null,
-    intentionText: "", intentionWhen: "", intentionWhere: "", intentionSet: false, purposeRating: null,
+    intentions: [], purposeRating: null,
     recovery: null, sleep: null, hrv: null, strain: null,
     supplementsTaken: {},
-    sick: false, travelling: false,
+    sick: false, travelling: false, excluded: false,
 });
 /* ---------- migration ---------- */
 function migrate(old) {
@@ -443,10 +446,11 @@ function migrate(old) {
                 checks.fasting = true;
             days[k] = {
                 checks, access: d.access ?? null, checkout: d.checkout ?? null,
-                intentionText: d.intentionText || "", intentionWhen: d.intentionWhen || "", intentionWhere: d.intentionWhere || "", intentionSet: !!d.intentionSet,
+                intentions: Array.isArray(d.intentions) ? d.intentions : [],
                 purposeRating: d.purposeRating ?? null,
                 recovery: d.recovery ?? null, sleep: d.sleep ?? null, steps: d.steps ?? null,
                 supplementsTaken: d.supplementsTaken || {},
+                sick: d.sick ?? false, travelling: d.travelling ?? false, excluded: d.excluded ?? false,
             };
         });
         return {
@@ -476,6 +480,12 @@ function migrate(old) {
         base.settings.therapyNote = "";
     if (base.settings.lapsePlan === undefined)
         base.settings.lapsePlan = "";
+    if (base.settings.breathFirstInhale === undefined)
+        base.settings.breathFirstInhale = 4.5;
+    if (!Array.isArray(base.settings.intentionTemplates))
+        base.settings.intentionTemplates = [];
+    if (base.settings.intentionWeight === undefined)
+        base.settings.intentionWeight = "med";
     /* sleepWeight used to be a bare number (always 2, no UI to change it) — move
        existing installs onto the same tier scale every other item already uses */
     if (typeof base.settings.sleepWeight === "number" || base.settings.sleepWeight === undefined)
@@ -536,7 +546,7 @@ function adherenceExpected(item, date, settings) {
     return scheduledOn(item, date);
 }
 /* ---------- scoring ---------- */
-function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty = 0) {
+function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty = 0, intentionWeight = "med") {
     const d = day || emptyDay();
     const wOf = (id, fallback) => (items.find((i) => i.id === id) || {}).weight || fallback;
     const scaleOf = (id, fallback) => WEIGHT_SCALE[wOf(id, fallback)] || WEIGHT_SCALE[fallback] || 1;
@@ -584,6 +594,10 @@ function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty 
        night is a genuine risk factor in its own right */
     if (d.sleep !== null && d.sleep !== undefined && d.sleep !== "" && Number(d.sleep) < 65) {
         r += Math.round(10 * scaleOf("sleepLow", "med"));
+    }
+    if (Array.isArray(d.intentions) && d.intentions.length) {
+        const met = d.intentions.filter((i) => i.met).length;
+        r -= Math.round(W_PROT[intentionWeight || "med"] * (met / d.intentions.length));
     }
     if (d.purposeRating !== null && d.purposeRating !== undefined) {
         if (d.purposeRating <= 2)
@@ -1058,10 +1072,25 @@ function Splash({ vigour, risk, cleanPct, cleanDelta, onDone }) {
             React.createElement("div", { className: "hype" }, hype))));
 }
 /* ---------- breathe overlay ---------- */
-function Breathe({ purposeText, onClose }) {
+/* Phase 2 (the sip) stays proportional to phase 1 at its original shape (2/3.5 of it)
+   unless retuned; exhale is locked to twice the COMBINED inhale, which is the general
+   guidance for this technique even though no single ratio is strictly "the" evidenced
+   one — the defining, actually-supported feature is that exhale is conspicuously
+   longer than the inhales, not an exact number. Adjusting firstInhale rescales
+   everything else so the ratio can't drift out of shape by hand. */
+const BREATH_PHASE2_RATIO = 2 / 3.5;
+const BREATH_EXHALE_RATIO = 2;
+function breathTiming(firstInhale) {
+    const phase2 = firstInhale * BREATH_PHASE2_RATIO;
+    const totalInhale = firstInhale + phase2;
+    const exhale = totalInhale * BREATH_EXHALE_RATIO;
+    return { firstInhale, phase2, exhale, cycle: firstInhale + phase2 + exhale };
+}
+function Breathe({ purposeText, firstInhale, onAdjustFirstInhale, onClose }) {
     const [started, setStarted] = useState(false);
     const [elapsed, setElapsed] = useState(0);
     const TOTAL = 180;
+    const T = breathTiming(firstInhale || 4.5);
     useEffect(() => {
         if (!started)
             return;
@@ -1074,22 +1103,19 @@ function Breathe({ purposeText, onClose }) {
         }, 100);
         return () => clearInterval(iv);
     }, [started]);
-    const inCycle = elapsed % 14;
+    const inCycle = elapsed % T.cycle;
     let phase, scale, dur;
-    if (inCycle < 3.5) {
-        phase = "Inhale Through The Nose";
-        scale = 1.14;
-        dur = "3.5s";
+    if (!started) {
+        phase = "Ready"; scale = 1; dur = "0s";
     }
-    else if (inCycle < 5.5) {
-        phase = "Sip In A Little More";
-        scale = 1.3;
-        dur = "2s";
+    else if (inCycle < T.firstInhale) {
+        phase = "Inhale Through The Nose"; scale = 1.14; dur = T.firstInhale.toFixed(1) + "s";
+    }
+    else if (inCycle < T.firstInhale + T.phase2) {
+        phase = "Sip In A Little More"; scale = 1.3; dur = T.phase2.toFixed(1) + "s";
     }
     else {
-        phase = "Long Slow Exhale Through The Mouth";
-        scale = 0.7;
-        dur = "8.5s";
+        phase = "Long Slow Exhale Through The Mouth"; scale = 0.7; dur = T.exhale.toFixed(1) + "s";
     }
     const remaining = Math.ceil(TOTAL - elapsed);
     const mm = Math.floor(remaining / 60), ss = pad(remaining % 60);
@@ -1099,13 +1125,26 @@ function Breathe({ purposeText, onClose }) {
             React.createElement("div", { className: "text-xs uppercase tracking-widest font-bold mb-3", style: { color: TEAL } }, "Win Logged \u2014 Urge Survived"),
             /* purpose text is a personal sentence, not a heading — Bodoni-uppercase (font-serif) reads as shouting here, so it stays on the Inter body face in its normal case */
 React.createElement("p", { className: "italic text-[#332d20] text-lg leading-relaxed whitespace-pre-line" }, purposeText)),
-        !started ? (React.createElement("button", { onClick: () => setStarted(true), className: "my-10 px-8 py-4 rounded-2xl font-bold text-lg text-neutral-950", style: { background: TEAL } }, "BEGIN 3-MINUTE RESET")) : (React.createElement("div", { className: "flex flex-col items-center my-8" },
+        React.createElement("div", { className: "flex flex-col items-center my-8" },
             React.createElement("div", { className: "relative w-52 h-52 flex items-center justify-center" },
                 React.createElement("div", { className: "absolute inset-0 rounded-full border border-[rgba(42,36,25,0.10)]" }),
+                /* mounted unconditionally, always at rest (scale 1) before Begin is pressed —
+                   this is the fix: a transition only animates a STYLE CHANGE on an already-
+                   painted node, so the first inhale needs a resting frame to grow from rather
+                   than being created already-expanded on its very first paint */
                 React.createElement("div", { className: "w-36 h-36 rounded-full opacity-20", style: { background: TEAL, transform: `scale(${scale})`, transition: `transform ${dur} ease-in-out` } }),
                 React.createElement("div", { className: "absolute w-36 h-36 rounded-full border-2", style: { borderColor: TEAL, transform: `scale(${scale})`, transition: `transform ${dur} ease-in-out` } })),
             React.createElement("div", { className: "text-[#332d20] mt-6 text-sm uppercase tracking-wide font-semibold" }, doneAll ? "Steady — The Wave Passed" : phase),
-            React.createElement("div", { className: "font-mono text-[#8a8172] mt-1 text-sm" }, doneAll ? "0:00" : `${mm}:${ss}`))),
+            React.createElement("div", { className: "font-mono text-[#8a8172] mt-1 text-sm" }, doneAll ? "0:00" : `${mm}:${ss}`),
+            !started && React.createElement("div", { className: "mt-6 flex flex-col items-center" },
+                React.createElement("div", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285] font-bold mb-1.5" }, "First Inhale"),
+                React.createElement("div", { className: "flex items-center gap-3" },
+                    React.createElement("button", { onClick: () => onAdjustFirstInhale(Math.max(2, Math.round((T.firstInhale - 0.5) * 10) / 10)), className: "w-9 h-9 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-sm font-bold" }, "\u2212"),
+                    React.createElement("div", { className: "font-mono text-lg font-bold text-[#2a2419] w-16 text-center" }, T.firstInhale.toFixed(1) + "s"),
+                    React.createElement("button", { onClick: () => onAdjustFirstInhale(Math.min(8, Math.round((T.firstInhale + 0.5) * 10) / 10)), className: "w-9 h-9 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-sm font-bold" }, "+")),
+                React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-2 tracking-wide" }, "sip " + T.phase2.toFixed(1) + "s \u00B7 exhale " + T.exhale.toFixed(1) + "s \u2014 rescales to hold the ratio")),
+            started && React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-4 tracking-wide" }, "inhale " + T.firstInhale.toFixed(1) + "s + " + T.phase2.toFixed(1) + "s \u00B7 exhale " + T.exhale.toFixed(1) + "s"),
+            !started && React.createElement("button", { onClick: () => setStarted(true), className: "mt-8 px-8 py-4 rounded-2xl font-bold text-lg text-neutral-950", style: { background: TEAL } }, "BEGIN 3-MINUTE RESET")),
         React.createElement("div", { className: "w-full max-w-md pb-4" },
             React.createElement("button", { onClick: onClose, className: "w-full py-3.5 rounded-2xl font-bold uppercase tracking-wide " + (doneAll ? "text-neutral-950" : "bg-[rgba(42,36,25,0.06)] text-[#6f6757]"), style: doneAll ? { background: TEAL } : undefined }, doneAll ? "Return, Stronger" : started ? "I'm Steady — Return Early" : "Close"))));
 }
@@ -1196,6 +1235,7 @@ function App() {
     const [view, setView] = useState("today");
     const [breathing, setBreathing] = useState(false);
     const [capture, setCapture] = useState(null);
+    const [editingRule, setEditingRule] = useState(null);
     const [confirmRelapse, setConfirmRelapse] = useState(false);
     const [confirmWetDream, setConfirmWetDream] = useState(false);
     const [justRelapsed, setJustRelapsed] = useState(false);
@@ -1209,6 +1249,9 @@ function App() {
     const [showSplash, setShowSplash] = useState(true);
     const [healthImported, setHealthImported] = useState(null);
     const [showMonth, setShowMonth] = useState(false);
+    const [gapPrompt, setGapPrompt] = useState(null);
+    const [intentionDraft, setIntentionDraft] = useState(null);
+    const [lastUrgeTs, setLastUrgeTs] = useState(null);
     const [addForm, setAddForm] = useState({ label: "", list: "prev", kind: "risk", weight: "med", vigourWeight: "low", bucket: "test", daily: true, days: [] });
     const saveTimer = useRef(null);
     /* Auto-count a session once its booked time passes; the +/- controls stay so a
@@ -1241,6 +1284,22 @@ function App() {
                 storageSet(loaded);
                 try { window.history.replaceState({}, "", window.location.pathname); } catch (e) { }
             }
+            /* Away-period detection: only flags days with NO entry at all (never just
+               unlogged-but-normal), and only once per gap — stamping lastOpenedTs into
+               the same write means a dismissed or resolved gap can't re-prompt. */
+            const now = Date.now();
+            const last = loaded.settings && loaded.settings.lastOpenedTs;
+            if (last && now - last > 2 * DAY_MS) {
+                const gapDays = [];
+                for (let t = last + DAY_MS; t < now; t += DAY_MS) {
+                    const k = dateKey(new Date(t));
+                    if (!loaded.days[k])
+                        gapDays.push(k);
+                }
+                if (gapDays.length)
+                    setGapPrompt({ days: gapDays });
+            }
+            loaded = { ...loaded, settings: { ...loaded.settings, lastOpenedTs: now } };
             setData(loaded);
         })();
     }, []);
@@ -1260,6 +1319,42 @@ function App() {
     const isToday = vk === tk;
     const today = { ...emptyDay(), ...(data.days[vk] || {}) };
     const setDay = (k, v) => persist({ ...data, days: { ...data.days, [vk]: { ...today, [k]: v } } });
+    /* Only TODAY lazily fills in from the repeating templates \u2014 a past day shows
+       exactly what was actually recorded then (or nothing), never today's current
+       template list retroactively. */
+    const todayIntentions = today.intentions.length || !isToday ? today.intentions
+        : (data.settings.intentionTemplates || []).map((t) => ({ ...t, met: false }));
+    const addIntention = () => {
+        if (!intentionDraft || !intentionDraft.text.trim() || todayIntentions.length >= 3)
+            return;
+        const item = { id: "int" + Date.now(), text: intentionDraft.text.trim(), when: intentionDraft.when.trim(), where: intentionDraft.where.trim(), met: false, repeat: false };
+        setDay("intentions", [...todayIntentions, item]);
+        setIntentionDraft(null);
+    };
+    const setIntentionField = (id, field, value) => {
+        const next = todayIntentions.map((it) => (it.id === id ? { ...it, [field]: value } : it));
+        setDay("intentions", next);
+        if (field === "repeat") {
+            const it = next.find((x) => x.id === id);
+            const templates = data.settings.intentionTemplates || [];
+            const nextTemplates = value
+                ? (templates.some((t) => t.id === id) ? templates.map((t) => (t.id === id ? { id, text: it.text, when: it.when, where: it.where } : t)) : [...templates, { id, text: it.text, when: it.when, where: it.where }])
+                : templates.filter((t) => t.id !== id);
+            setSetting("intentionTemplates", nextTemplates);
+        }
+    };
+    const removeIntention = (id) => {
+        setDay("intentions", todayIntentions.filter((it) => it.id !== id));
+        setSetting("intentionTemplates", (data.settings.intentionTemplates || []).filter((t) => t.id !== id));
+    };
+    const flagGapDays = (kind) => {
+        if (!gapPrompt)
+            return;
+        const nextDays = { ...data.days };
+        gapPrompt.days.forEach((k) => { nextDays[k] = { ...emptyDay(), ...(nextDays[k] || {}), [kind]: true }; });
+        persist({ ...data, days: nextDays });
+        setGapPrompt(null);
+    };
     const setCheck = (id, v) => setDay("checks", { ...today.checks, [id]: v });
     const urgesToday = data.urges.filter((u) => dateKey(new Date(u.ts)) === vk).length;
     const relapseToday = data.relapses.some((r) => dateKey(new Date(r.ts)) === vk);
@@ -1279,7 +1374,7 @@ function App() {
     })();
     const accountabilityPenalty = therapistStatus === "setup" || therapistStatus === "overdue" ? 15
         : therapistStatus === "outside" ? 8 : 0;
-    const risk = riskScore(today, items, urgesToday, relapseToday, accountabilityPenalty);
+    const risk = riskScore(today, items, urgesToday, relapseToday, accountabilityPenalty, data.settings.intentionWeight);
     const h = vigourForDay(today, new Date(), items, data.settings);
     const vigourPct = pctFrom(h.done, h.total);
     const loggedRelapse = data.relapses.length ? Math.max(...data.relapses.map((r) => r.ts)) : null;
@@ -1310,7 +1405,7 @@ function App() {
                 return;
             if (riskLogged(data.days[k], items)) {
                 const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
-                rSum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeySet.has(k));
+                rSum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeySet.has(k), 0, data.settings.intentionWeight);
                 rN++;
             }
             if (!isFlagged(k)) {
@@ -1350,12 +1445,12 @@ function App() {
             const t = new Date(k + "T12:00:00");
             if (t.getTime() < from)
                 return;
-            if (riskLogged(data.days[k], items)) {
+            if (riskLogged(data.days[k], items) && !data.days[k].excluded) {
                 const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
-                rSum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeys.has(k));
+                rSum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeys.has(k), 0, data.settings.intentionWeight);
                 rN++;
             }
-            if (!flagged(k)) {
+            if (!flagged(k) && !data.days[k].excluded) {
                 const v = vigourForDay({ ...emptyDay(), ...data.days[k] }, t, items, data.settings);
                 hd += v.done;
                 ht += v.total;
@@ -1372,30 +1467,65 @@ function App() {
     })();
     /* Auto-count a session once its booked time passes; the +/- controls stay so a
        cancelled session can be corrected rather than silently drifting. */
-    const logUrge = () => { persist({ ...data, urges: [...data.urges, { ts: Date.now() }] }); setBreathing(true); };
+    const logUrge = () => {
+        const ts = Date.now();
+        persist({ ...data, urges: [...data.urges, { ts }] });
+        setLastUrgeTs(ts);
+        setBreathing(true);
+    };
+    /* Tags saved go onto the urge record itself, not only into the Rules list \u2014
+       stats need every logged urge's data (including a bare Skip, which still counts
+       as "just the breathing" since the button click already means the sigh happened),
+       not just the ones that formed a memorable rule. */
+    const tagUrge = (ts, triggers, responses) => {
+        const next = data.urges.map((u) => (u.ts === ts ? { ...u, triggers, responses } : u));
+        persist({ ...data, urges: next });
+    };
+    const tagRelapse = (ts, triggers) => {
+        const next = data.relapses.map((r) => (r.ts === ts ? { ...r, triggers } : r));
+        persist({ ...data, relapses: next });
+    };
     /* Rules are built backwards from what actually happened rather than planned in
        advance — captured after an urge passes, then reflected back when the same
        trigger shows up. Caveat worth remembering: the evidence is for plans formed
        BEFORE the situation; deriving them from logged events keeps the if-then
        format but is an extrapolation. */
-    const rules = Array.isArray(data.rules) ? data.rules : [];
-    const addRule = (trigger, response) => {
-        if (!trigger && !response)
-            return;
-        const existing = rules.findIndex((r) => r.trigger === trigger && r.response === response);
-        const next = existing !== -1
-            ? rules.map((r, i) => (i === existing ? { ...r, count: (r.count || 1) + 1, ts: Date.now() } : r))
-            : [...rules, { trigger, response, count: 1, ts: Date.now() }];
+    /* Rules are keyed by SETS of triggers/responses, not single strings — an urge is
+       often multi-causal ("home alone" AND "stressed"), and forcing one tag per field
+       loses that. A rule with no extra response is still meaningful: it means the
+       breathing alone was enough, which is the actual default for every logged urge
+       (the button click already means the sigh happened) — so it's tracked as its
+       own real outcome, not treated as missing data. */
+    const rules = Array.isArray(data.rules) ? data.rules.map((r) => ({
+        triggers: Array.isArray(r.triggers) ? r.triggers : (r.trigger ? [r.trigger] : []),
+        responses: Array.isArray(r.responses) ? r.responses : (r.response ? [r.response] : []),
+        count: r.count || 1, ts: r.ts || Date.now(),
+    })) : [];
+    const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+    const upsertRule = (triggers, responses, delta) => {
+        const idx = rules.findIndex((r) => sameSet(r.triggers, triggers) && sameSet(r.responses, responses));
+        const next = idx !== -1
+            ? rules.map((r, i) => (i === idx ? { ...r, count: Math.max(0, (r.count || 1) + delta) } : r)).filter((r) => r.count > 0)
+            : delta > 0 ? [...rules, { triggers, responses, count: 1, ts: Date.now() }] : rules;
         persist({ ...data, rules: next });
     };
+    const addRule = (triggers, responses) => {
+        if (!triggers.length && !responses.length)
+            return;
+        upsertRule(triggers, responses, 1);
+    };
     const removeRule = (i) => persist({ ...data, rules: rules.filter((_, n) => n !== i) });
+    const editRule = (i, triggers, responses) => {
+        const next = rules.map((r, n) => (n === i ? { ...r, triggers, responses } : r));
+        persist({ ...data, rules: next });
+    };
     const ruleTriggers = Array.from(new Set([
         ...items.filter((i) => isPrev(i) && i.kind === "risk").map((i) => i.label),
-        ...rules.map((r) => r.trigger),
+        ...rules.flatMap((r) => r.triggers),
     ].filter(Boolean)));
     const ruleResponses = Array.from(new Set([
         "Left the room", "Went outside", "Cold water", "Called someone", "Trained",
-        ...rules.map((r) => r.response),
+        ...rules.flatMap((r) => r.responses),
     ].filter(Boolean)));
     const logRelapse = (type) => {
         const ts = isToday ? Date.now() : new Date(vk + "T12:00:00").getTime();
@@ -1421,13 +1551,14 @@ function App() {
         setConfirmWetDream(false);
     };
     const now = new Date(Date.now() + viewOffset * DAY_MS);
-    const prevRisks = items.filter((i) => i.list === "prev" && i.kind === "risk" && scheduledOn(i, now)).sort(byWeightDesc);
-    const prevHabits = items.filter((i) => i.list === "prev" && i.kind === "habit" && scheduledOn(i, now)).sort(byWeightDesc);
+    const flaggedDay = today.sick === true || today.travelling === true;
+    const prevRisks = items.filter((i) => i.list === "prev" && i.kind === "risk" && scheduledOn(i, now) && !(flaggedDay && i.excusable === true)).sort(byWeightDesc);
+    const prevHabits = items.filter((i) => i.list === "prev" && i.kind === "habit" && scheduledOn(i, now) && !(flaggedDay && i.excusable === true)).sort(byWeightDesc);
     const fastToday = fastingSuggested(now, data.settings.fastMode);
-    const primeToday = items.filter((i) => i.list === "prime" && (i.kind === "habit" || i.kind === "risk") && (i.fastingAuto ? fastToday : scheduledOn(i, now))).sort(byWeightDesc);
+    const primeToday = items.filter((i) => i.list === "prime" && (i.kind === "habit" || i.kind === "risk") && (i.fastingAuto ? fastToday : scheduledOn(i, now)) && !(flaggedDay && i.excusable === true)).sort(byWeightDesc);
     /* Double Horns: items that score on both sides. Shown once, in their own section,
        rather than duplicated into Prevention and Vigour. */
-    const dualToday = items.filter((i) => i.list === "both" && (i.fastingAuto ? fastToday : scheduledOn(i, now))).sort(byWeightDesc);
+    const dualToday = items.filter((i) => i.list === "both" && (i.fastingAuto ? fastToday : scheduledOn(i, now)) && !(flaggedDay && i.excusable === true)).sort(byWeightDesc);
     const primeByBucket = BUCKETS.map((b) => ({ ...b, items: primeToday.filter((i) => (i.bucket || "test") === b.id) })).filter((b) => b.items.length || b.id === "test");
     /* ---- stats ---- */
     const statsFor = () => {
@@ -1445,19 +1576,19 @@ function App() {
         const flagged = (k) => { const d = data.days[k]; return d && (d.sick === true || d.travelling === true); };
         const keys = Object.keys(data.days).filter((k) => {
             const t = new Date(k + "T12:00:00").getTime();
-            return t >= from && riskLogged(data.days[k], items);
+            return t >= from && riskLogged(data.days[k], items) && !data.days[k].excluded;
         });
         let sum = 0;
         keys.forEach((k) => {
             const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
-            sum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeySet.has(k));
+            sum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeySet.has(k), 0, data.settings.intentionWeight);
         });
         let hd = 0, ht = 0;
         Object.keys(data.days).forEach((k) => {
             const t = new Date(k + "T12:00:00");
             if (t.getTime() < from)
                 return;
-            if (flagged(k))
+            if (flagged(k) || data.days[k].excluded)
                 return;
             const r = vigourForDay({ ...emptyDay(), ...data.days[k] }, t, items, data.settings);
             hd += r.done;
@@ -1514,7 +1645,7 @@ function App() {
             const day = data.days[k];
             const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
             const rel = data.relapses.some((r) => dateKey(new Date(r.ts)) === k);
-            out.push({ k, logged: riskLogged(day, items) || rel, rel, score: riskScore({ ...emptyDay(), ...(day || {}) }, items, uc, rel) });
+            out.push({ k, logged: riskLogged(day, items) || rel, rel, score: riskScore({ ...emptyDay(), ...(day || {}) }, items, uc, rel, 0, data.settings.intentionWeight) });
         }
         return out;
     })();
@@ -1625,27 +1756,51 @@ function App() {
         React.createElement("div", { className: "bull-danger" + (ambient.tense ? " tense" : "") }),
         showMonth && React.createElement(MonthView, { data: data, items: items, settings: data.settings, onPick: (off) => { setViewOffset(off); setView("today"); }, onClose: () => setShowMonth(false) }),
         showSplash && data && React.createElement(Splash, { vigour: splashAvgs.vigour, risk: splashAvgs.risk, cleanPct: splashAvgs.clean, cleanDelta: splashAvgs.cleanDelta, onDone: () => setShowSplash(false) }),
-        capture && React.createElement("div", { className: "fixed inset-0 z-50 flex items-end justify-center", style: { background: "rgba(42,36,25,0.45)" }, onClick: () => setCapture(null) },
+        gapPrompt && React.createElement("div", { className: "fixed inset-0 z-50 flex items-end justify-center", style: { background: "rgba(42,36,25,0.45)" }, onClick: () => setGapPrompt(null) },
             React.createElement("div", { onClick: (e) => e.stopPropagation(), className: "w-full max-w-[430px] rounded-t-3xl p-5 pb-8", style: { background: "#faf6ef" } },
-                React.createElement("div", { className: "font-serif text-lg text-[#2a2419]" }, "That one passed"),
-                React.createElement("div", { className: "text-xs text-[#8a8172] mt-1 mb-4 leading-relaxed" }, "Two taps, both optional \\u2014 this is how Bull learns your rules."),
-                React.createElement("div", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285] font-bold mb-2" }, "What set it off?"),
-                React.createElement("div", { className: "flex flex-wrap gap-2 mb-4" }, ruleTriggers.slice(0, 10).map((t) => React.createElement("button", {
-                    key: t, onClick: () => setCapture((c) => ({ ...c, trigger: c.trigger === t ? "" : t })),
-                    className: "px-3 py-1.5 rounded-full text-xs border transition-colors " + (capture.trigger === t ? "font-bold text-neutral-950" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"),
-                    style: capture.trigger === t ? { background: AMBER, borderColor: AMBER } : undefined,
-                }, t))),
-                React.createElement("div", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285] font-bold mb-2" }, "What did you do instead?"),
-                React.createElement("div", { className: "flex flex-wrap gap-2 mb-3" }, ruleResponses.slice(0, 10).map((t) => React.createElement("button", {
-                    key: t, onClick: () => setCapture((c) => ({ ...c, response: c.response === t ? "" : t })),
-                    className: "px-3 py-1.5 rounded-full text-xs border transition-colors " + (capture.response === t ? "font-bold text-neutral-950" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"),
-                    style: capture.response === t ? { background: TEAL, borderColor: TEAL } : undefined,
-                }, t))),
-                React.createElement("input", { value: capture.response, onChange: (e) => setCapture((c) => ({ ...c, response: e.target.value })), placeholder: "\\u2026or type it", className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600 mb-3" }),
+                React.createElement("div", { className: "font-serif text-lg text-[#2a2419]" }, "Away for " + gapPrompt.days.length + " day" + (gapPrompt.days.length === 1 ? "" : "s")),
+                React.createElement("div", { className: "text-xs text-[#8a8172] mt-1 mb-4 leading-relaxed" }, "No data at all for that stretch. If it was sick or travel, flag it \u2014 those still count as real risk, just not against your averages. Otherwise leave it."),
                 React.createElement("div", { className: "flex gap-2" },
-                    React.createElement("button", { onClick: () => { addRule(capture.trigger, capture.response); setCapture(null); }, className: "flex-1 py-3 rounded-xl text-neutral-950 text-sm font-bold uppercase tracking-wide", style: { background: AMBER } }, "Save"),
-                    React.createElement("button", { onClick: () => setCapture(null), className: "px-5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-sm uppercase" }, "Skip")))),
-        breathing && React.createElement(Breathe, { purposeText: data.settings.purposeText, onClose: () => { setBreathing(false); setCapture({ trigger: "", response: "" }); } }),
+                    React.createElement("button", { onClick: () => flagGapDays("sick"), className: "flex-1 py-3 rounded-xl text-neutral-950 text-xs font-bold uppercase tracking-wide", style: { background: CAUTION } }, "Sick"),
+                    React.createElement("button", { onClick: () => flagGapDays("travelling"), className: "flex-1 py-3 rounded-xl text-neutral-950 text-xs font-bold uppercase tracking-wide", style: { background: CAUTION } }, "Travelling"),
+                    React.createElement("button", { onClick: () => setGapPrompt(null), className: "px-5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-xs uppercase" }, "Leave It")))),
+        capture && React.createElement("div", { className: "fixed inset-0 z-50 flex items-end justify-center", style: { background: "rgba(42,36,25,0.45)" }, onClick: () => { setCapture(null); setEditingRule(null); } },
+            React.createElement("div", { onClick: (e) => e.stopPropagation(), className: "w-full max-w-[430px] rounded-t-3xl p-5 pb-8", style: { background: "#faf6ef" } },
+                React.createElement("div", { className: "font-serif text-lg text-[#2a2419]" }, editingRule !== null ? "Edit rule" : "That one passed"),
+                React.createElement("div", { className: "text-xs text-[#8a8172] mt-1 mb-4 leading-relaxed" }, editingRule !== null
+                    ? "Tap any tag to add or remove it."
+                    : "Both optional, pick as many as apply — this is how Bull learns your rules. Clicking Urge already means the breathing happened; this is just anything extra."),
+                React.createElement("div", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285] font-bold mb-2" }, "What set it off?"),
+                React.createElement("div", { className: "flex flex-wrap gap-2 mb-4" }, ruleTriggers.slice(0, 12).map((t) => React.createElement("button", {
+                    key: t, onClick: () => setCapture((c) => ({ ...c, triggers: c.triggers.includes(t) ? c.triggers.filter((x) => x !== t) : [...c.triggers, t] })),
+                    className: "px-3 py-1.5 rounded-full text-xs border transition-colors " + (capture.triggers.includes(t) ? "font-bold text-neutral-950" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"),
+                    style: capture.triggers.includes(t) ? { background: AMBER, borderColor: AMBER } : undefined,
+                }, t))),
+                React.createElement("div", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285] font-bold mb-2" }, editingRule !== null ? "What helped, beyond the breathing?" : "Anything else that helped?"),
+                React.createElement("div", { className: "flex flex-wrap gap-2 mb-3" }, ruleResponses.slice(0, 12).map((t) => React.createElement("button", {
+                    key: t, onClick: () => setCapture((c) => ({ ...c, responses: c.responses.includes(t) ? c.responses.filter((x) => x !== t) : [...c.responses, t] })),
+                    className: "px-3 py-1.5 rounded-full text-xs border transition-colors " + (capture.responses.includes(t) ? "font-bold text-neutral-950" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"),
+                    style: capture.responses.includes(t) ? { background: TEAL, borderColor: TEAL } : undefined,
+                }, t))),
+                React.createElement("input", { value: capture.draft || "", onChange: (e) => setCapture((c) => ({ ...c, draft: e.target.value })), onKeyDown: (e) => { if (e.key === "Enter" && capture.draft && capture.draft.trim()) { setCapture((c) => ({ ...c, responses: [...c.responses, c.draft.trim()], draft: "" })); } }, placeholder: "\u2026or type it, then Enter", className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600 mb-3" }),
+                !editingRule && !capture.triggers.length && !capture.responses.length && React.createElement("div", { className: "text-[11px] text-[#9a9285] mb-3 leading-relaxed" }, "Saving with nothing picked still counts \u2014 it means the breathing alone was enough."),
+                React.createElement("div", { className: "flex gap-2" },
+                    React.createElement("button", {
+                        onClick: () => {
+                            if (editingRule !== null) {
+                                editRule(editingRule, capture.triggers, capture.responses);
+                            }
+                            else {
+                                if (lastUrgeTs)
+                                    tagUrge(lastUrgeTs, capture.triggers, capture.responses);
+                                addRule(capture.triggers, capture.responses);
+                            }
+                            setCapture(null); setEditingRule(null);
+                        },
+                        className: "flex-1 py-3 rounded-xl text-neutral-950 text-sm font-bold uppercase tracking-wide", style: { background: AMBER },
+                    }, "Save"),
+                    React.createElement("button", { onClick: () => { setCapture(null); setEditingRule(null); }, className: "px-5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-sm uppercase" }, editingRule !== null ? "Cancel" : "Skip")))),
+        breathing && React.createElement(Breathe, { purposeText: data.settings.purposeText, firstInhale: data.settings.breathFirstInhale, onAdjustFirstInhale: (v) => setSetting("breathFirstInhale", v), onClose: () => { setBreathing(false); setCapture({ triggers: [], responses: [] }); } }),
         React.createElement("div", { className: "max-w-md mx-auto px-4", style: { paddingTop: "calc(env(safe-area-inset-top, 0px) + 24px)" } },
             view === "today" && (React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "flex items-center gap-1.5 mb-1" },
@@ -1696,18 +1851,25 @@ function App() {
                         data.urges.length === 1 ? "" : "s",
                         " survived all-time"))) : (React.createElement("div", { className: "text-center text-xs text-[#9a9285] mt-1 uppercase tracking-wide py-4 border border-dashed border-[rgba(42,36,25,0.10)] rounded-2xl" }, "Urge logging only available on today")),
                 React.createElement(SectionLabel, null, "Morning Intention"),
-                React.createElement(Card, null, today.intentionSet ? (React.createElement("div", { className: "flex items-start gap-2" },
-                    React.createElement(Check, { size: 18, style: { color: TEAL }, className: "mt-0.5 shrink-0" }),
-                    React.createElement("div", null,
-                        React.createElement("div", { className: "text-sm text-[#4a4335]" }, today.intentionText || "Intention set."),
-                        (today.intentionWhen || today.intentionWhere) && React.createElement("div", { className: "text-xs text-[#8a8172] mt-0.5" }, [today.intentionWhen, today.intentionWhere].filter(Boolean).join(" \u00B7 ")),
-                        React.createElement("button", { onClick: () => setDay("intentionSet", false), className: "text-[10px] uppercase tracking-wide text-[#9a9285] underline mt-1" }, "Edit")))) : (React.createElement("div", null,
-                    React.createElement("input", { value: today.intentionText, onChange: (e) => setDay("intentionText", e.target.value), placeholder: "One purposeful thing today\u2026", className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
-                    React.createElement("div", { className: "flex gap-2 mt-2" },
-                        React.createElement("input", { value: today.intentionWhen, onChange: (e) => setDay("intentionWhen", e.target.value), placeholder: "When\u2026", className: "flex-1 min-w-0 rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
-                        React.createElement("input", { value: today.intentionWhere, onChange: (e) => setDay("intentionWhere", e.target.value), placeholder: "Where\u2026", className: "flex-1 min-w-0 rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" })),
-                    React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-1.5 leading-relaxed" }, "Naming when and where is what makes this work \u2014 not the wording."),
-                    React.createElement("button", { onClick: () => setDay("intentionSet", true), className: "w-full mt-2 py-2.5 rounded-xl text-neutral-950 text-sm font-bold uppercase", style: { background: TEAL } }, "Set")))),
+                React.createElement(Card, null,
+                    todayIntentions.length === 0 && !intentionDraft && React.createElement("div", { className: "text-xs text-[#9a9285] mb-2 leading-relaxed" }, "Nothing set. A concrete when-and-where beats a vague goal for the day."),
+                    todayIntentions.map((it, idx) => React.createElement("div", { key: it.id, className: "flex items-start gap-2.5 py-2.5 border-b border-[rgba(42,36,25,0.08)] last:border-0" },
+                        React.createElement("button", { onClick: () => setIntentionField(it.id, "met", !it.met), className: "w-5 h-5 rounded-md border-2 mt-0.5 shrink-0 flex items-center justify-center", style: it.met ? { background: TEAL, borderColor: TEAL } : { borderColor: "rgba(42,36,25,0.22)" } }, it.met && React.createElement(Check, { size: 13, style: { color: "#0a0a0a" } })),
+                        React.createElement("div", { className: "flex-1 min-w-0" },
+                            React.createElement("div", { className: "text-sm text-[#4a4335]" + (it.met ? " line-through opacity-60" : "") }, it.text || "Untitled"),
+                            (it.when || it.where) && React.createElement("div", { className: "text-xs text-[#8a8172] mt-0.5" }, [it.when, it.where].filter(Boolean).join(" \u00B7 ")),
+                            React.createElement("button", { onClick: () => setIntentionField(it.id, "repeat", !it.repeat), className: "text-[10px] uppercase tracking-wide underline mt-1", style: { color: it.repeat ? TEAL : "#9a9285" } }, it.repeat ? "Repeats Daily" : "Repeat Daily?")),
+                        React.createElement("button", { onClick: () => removeIntention(it.id), className: "text-[#9a9285] shrink-0 px-1 mt-0.5" }, React.createElement(Trash2, { size: 13 })))),
+                    intentionDraft && React.createElement("div", { className: "pt-2" + (todayIntentions.length ? " mt-1 border-t border-[rgba(42,36,25,0.08)]" : "") },
+                        React.createElement("input", { value: intentionDraft.text, onChange: (e) => setIntentionDraft((d) => ({ ...d, text: e.target.value })), placeholder: "One purposeful thing\u2026", className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600 mt-2" }),
+                        React.createElement("div", { className: "flex gap-2 mt-2" },
+                            React.createElement("input", { value: intentionDraft.when, onChange: (e) => setIntentionDraft((d) => ({ ...d, when: e.target.value })), placeholder: "When\u2026", className: "flex-1 min-w-0 rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" }),
+                            React.createElement("input", { value: intentionDraft.where, onChange: (e) => setIntentionDraft((d) => ({ ...d, where: e.target.value })), placeholder: "Where\u2026", className: "flex-1 min-w-0 rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600" })),
+                        React.createElement("div", { className: "flex gap-2 mt-2" },
+                            React.createElement("button", { onClick: addIntention, className: "flex-1 py-2.5 rounded-xl text-neutral-950 text-sm font-bold uppercase", style: { background: TEAL } }, "Add"),
+                            React.createElement("button", { onClick: () => setIntentionDraft(null), className: "px-4 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#6f6757] text-sm uppercase" }, "Cancel"))),
+                    !intentionDraft && todayIntentions.length < 3 && React.createElement("button", { onClick: () => setIntentionDraft({ text: "", when: "", where: "" }), className: "text-xs text-[#9a9285] underline uppercase tracking-wide mt-1" }, "+ Add Intention"),
+                    todayIntentions.length >= 3 && !intentionDraft && React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-1" }, "Capped at 3 \u2014 a few deliberate ones beat a long list.")),
                 React.createElement(SectionLabel, null, "Therapy"),
                 React.createElement(Card, { className: therapistStatus !== "scheduled" ? "border border-amber-500/50" : "" },
                     React.createElement("div", { className: "text-xs uppercase tracking-widest font-bold mb-2", style: { color: therapistStatus === "scheduled" ? TEAL : CAUTION } }, therapistStatus === "setup" ? "Nothing Booked"
@@ -1758,7 +1920,9 @@ function App() {
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex gap-2" },
                         React.createElement("button", { onClick: () => setDay("sick", !today.sick), className: "flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.sick ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: today.sick ? { background: CAUTION, borderColor: CAUTION } : undefined }, "Sick"),
-                        React.createElement("button", { onClick: () => setDay("travelling", !today.travelling), className: "flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.travelling ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: today.travelling ? { background: CAUTION, borderColor: CAUTION } : undefined }, "Travelling"))),
+                        React.createElement("button", { onClick: () => setDay("travelling", !today.travelling), className: "flex-1 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.travelling ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: today.travelling ? { background: CAUTION, borderColor: CAUTION } : undefined }, "Travelling")),
+                    React.createElement("button", { onClick: () => setDay("excluded", !today.excluded), className: "w-full mt-2 py-2.5 rounded-xl text-xs uppercase tracking-wide border font-semibold transition-colors " + (today.excluded ? "text-neutral-950 font-bold" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"), style: today.excluded ? { background: "#8a8172", borderColor: "#8a8172" } : undefined }, "Exclude From Averages"),
+                    React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-1.5 leading-relaxed" }, "For a day whose data just doesn't mean anything \u2014 not for a real risk day. Relapses and Clean% are untouched either way.")),
                 React.createElement(SectionLabel, null, "Evening Review"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "text-xs uppercase tracking-wide text-[#4a4335] mb-2 font-semibold" }, "How Meaningful Did Today Feel"),
@@ -1809,6 +1973,12 @@ function App() {
                         React.createElement("div", { className: "flex gap-2 mb-2" },
                             React.createElement("button", { onClick: () => editRelapseType("orgasm"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide transition-opacity " + (existingRelapse.type === "edge" ? "opacity-40" : ""), style: { background: "#b62f2b" } }, "Orgasmed"),
                             React.createElement("button", { onClick: () => editRelapseType("edge"), className: "flex-1 py-2.5 rounded-xl text-white text-xs font-bold uppercase tracking-wide transition-opacity " + (existingRelapse.type === "orgasm" || !existingRelapse.type ? "opacity-40" : ""), style: { background: "#c2701e" } }, "Edged Only")),
+                        React.createElement("div", { className: "text-[10px] uppercase tracking-[0.16em] text-[#9a9285] font-bold mb-2 mt-1" }, "What set it off? (optional)"),
+                        React.createElement("div", { className: "flex flex-wrap gap-2 mb-3" }, ruleTriggers.slice(0, 12).map((t) => { const on = (existingRelapse.triggers || []).includes(t); return React.createElement("button", {
+                            key: t, onClick: () => tagRelapse(existingRelapse.ts, on ? (existingRelapse.triggers || []).filter((x) => x !== t) : [...(existingRelapse.triggers || []), t]),
+                            className: "px-3 py-1.5 rounded-full text-xs border transition-colors " + (on ? "font-bold text-neutral-950" : "border-[rgba(42,36,25,0.16)] text-[#6f6757]"),
+                            style: on ? { background: "#c2701e", borderColor: "#c2701e" } : undefined,
+                        }, t); })),
                         React.createElement("button", { onClick: removeRelapse, className: "w-full py-2.5 rounded-xl bg-[rgba(42,36,25,0.06)] text-[#4a4335] text-sm uppercase" }, "Remove Log")))),
                 isToday && confirmWetDream && (React.createElement(Card, { className: "mt-3" },
                     React.createElement("div", { className: "text-sm text-[#4a4335] mb-3" }, "Log a wet dream for today? Used only for Pattern correlation \u2014 same as relapses."),
@@ -1846,18 +2016,42 @@ function App() {
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex gap-1.5 justify-between" }, last14.map((d) => (React.createElement("div", { key: d.k, title: d.k, className: "flex-1 h-9 rounded", style: { background: d.rel ? ROSE : !d.logged ? "#292524" : riskColor(d.score) } })))),
                     React.createElement("div", { className: "text-xs text-[#8a8172] mt-2 uppercase tracking-wide" }, "Green safe \u00B7 Amber caution \u00B7 Red risk/relapse \u00B7 Grey unlogged")),
+                React.createElement(SectionLabel, null, "Urge Triggers"),
+                React.createElement(Card, null, (() => {
+                    const tally = {};
+                    data.urges.forEach((u) => (u.triggers || []).forEach((t) => { tally[t] = tally[t] || { survived: 0, relapsed: 0 }; tally[t].survived++; }));
+                    data.relapses.forEach((r) => (r.triggers || []).forEach((t) => { tally[t] = tally[t] || { survived: 0, relapsed: 0 }; tally[t].relapsed++; }));
+                    const rows = Object.entries(tally).sort((a, b) => (b[1].survived + b[1].relapsed) - (a[1].survived + a[1].relapsed));
+                    return rows.length === 0
+                        ? React.createElement("div", { className: "text-sm text-[#6f6757] leading-relaxed" }, "Builds itself from what you tag on urges and relapses \u2014 nothing logged yet.")
+                        : rows.map(([t, c]) => React.createElement("div", { key: t, className: "flex items-center justify-between py-2 border-b border-[rgba(42,36,25,0.09)] last:border-0" },
+                            React.createElement("div", { className: "text-sm text-[#332d20]" }, t),
+                            React.createElement("div", { className: "text-xs text-[#8a8172] tracking-wide" }, c.survived + " survived" + (c.relapsed ? ", " + c.relapsed + " relapsed" : ""))));
+                })()),
+                React.createElement(SectionLabel, null, "What Helps"),
+                React.createElement(Card, null, (() => {
+                    const total = data.urges.length;
+                    const tally = { "Just the breathing": total };
+                    data.urges.forEach((u) => (u.responses || []).forEach((t) => { tally[t] = (tally[t] || 0) + 1; }));
+                    const rows = Object.entries(tally).sort((a, b) => b[1] - a[1]);
+                    return total === 0
+                        ? React.createElement("div", { className: "text-sm text-[#6f6757] leading-relaxed" }, "Tap Urge at least once and this fills in on its own.")
+                        : rows.map(([t, c]) => React.createElement("div", { key: t, className: "flex items-center justify-between py-2 border-b border-[rgba(42,36,25,0.09)] last:border-0" },
+                            React.createElement("div", { className: "text-sm text-[#332d20]" }, t),
+                            React.createElement("div", { className: "text-xs text-[#8a8172] tracking-wide" }, c + "x")));
+                })()),
                 React.createElement(SectionLabel, null, "My Rules"),
                 React.createElement(Card, null, rules.length === 0
-                    ? React.createElement("div", { className: "text-sm text-[#6f6757] leading-relaxed" }, "Builds itself. After you ride out an urge, note what set it off and what you did instead \u2014 those pairs land here.")
-                    : rules.slice().sort((a, b) => (b.count || 1) - (a.count || 1)).map((r, i) => React.createElement("div", { key: i, className: "flex items-start gap-2 py-2.5 border-b border-[rgba(42,36,25,0.09)] last:border-0" },
-                        React.createElement("div", { className: "flex-1" },
+                    ? React.createElement("div", { className: "text-sm text-[#6f6757] leading-relaxed" }, "Builds itself. After you ride out an urge, note what set it off \u2014 those pairs land here.")
+                    : rules.slice().sort((a, b) => (b.count || 1) - (a.count || 1)).map((r) => { const i = rules.indexOf(r); return React.createElement("div", { key: i, className: "flex items-start gap-2 py-2.5 border-b border-[rgba(42,36,25,0.09)] last:border-0" },
+                        React.createElement("button", { onClick: () => { setEditingRule(i); setCapture({ triggers: [...r.triggers], responses: [...r.responses] }); }, className: "flex-1 text-left" },
                             React.createElement("div", { className: "text-sm text-[#332d20] leading-snug" },
                                 React.createElement("span", { className: "text-[#9a9285]" }, "If "),
-                                r.trigger || "an urge hits",
+                                r.triggers.length ? r.triggers.join(" + ") : "an urge hits",
                                 React.createElement("span", { className: "text-[#9a9285]" }, " \u2192 "),
-                                r.response || "\u2014"),
+                                r.responses.length ? r.responses.join(", ") : "Just the breathing"),
                             (r.count || 1) > 1 && React.createElement("div", { className: "text-[10px] text-[#9a9285] mt-0.5 tracking-wide" }, "worked " + r.count + " times")),
-                        React.createElement("button", { onClick: () => removeRule(rules.indexOf(r)), className: "text-[#9a9285] shrink-0 px-1" }, React.createElement(Trash2, { size: 14 }))))),
+                        React.createElement("button", { onClick: () => removeRule(i), className: "text-[#9a9285] shrink-0 px-1" }, React.createElement(Trash2, { size: 14 }))); })),
                 React.createElement(SectionLabel, null, "Relapse Patterns"),
                 React.createElement(Card, null, correlations === null ? (React.createElement("div", { className: "text-sm text-[#6f6757]" }, "Unlocks after 3 logged relapses.")) : correlations.length === 0 ? (React.createElement("div", { className: "text-sm text-[#6f6757]" }, "Keep logging.")) : (correlations.map((c) => (React.createElement("div", { key: c.label, className: "py-2 border-b border-[rgba(42,36,25,0.10)] last:border-0" },
                     React.createElement("div", { className: "text-sm text-[#332d20] uppercase tracking-wide font-semibold" }, c.label),
@@ -1984,6 +2178,10 @@ function App() {
                 React.createElement(Card, null,
                     React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "Written now, while it\u2019s calm. This is what Bull shows you instead of a scoreboard when you log a lapse \u2014 the spiral comes from how a slip gets read, not from the slip."),
                     React.createElement("textarea", { value: data.settings.lapsePlan || "", onChange: (e) => setSetting("lapsePlan", e.target.value), rows: 4, placeholder: "What I do next: water, shower, get outside, message\u2026", className: "w-full rounded-xl bull-field px-3 py-2 text-sm outline-none placeholder-neutral-600 resize-none" })),
+                React.createElement(SectionLabel, null, "Morning Intention Weight"),
+                React.createElement(Card, null,
+                    React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much completing today's intentions counts toward Risk \u2014 proportional to how many you actually met, at this weight."),
+                    React.createElement(Seg, { value: data.settings.intentionWeight || "med", allowClear: false, onChange: (v) => v && setSetting("intentionWeight", v), options: WEIGHT_OPTS })),
                 React.createElement(SectionLabel, null, "Sleep Weight"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much the Sleep Score counts toward Vigour \u2014 same Low/Med/High/V.High scale as every checklist item. Most testosterone release happens during sleep, so it earns real weight by default."),
