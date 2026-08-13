@@ -399,6 +399,7 @@ const DEFAULT_SETTINGS = {
     lapsePlan: "",
     fastMode: "both",
     sleepWeight: "high",
+    recoveryWeight: "med",
     breathFirstInhale: 4.5,
     intentionTemplates: [],
     intentionWeight: "med",
@@ -490,6 +491,8 @@ function migrate(old) {
        existing installs onto the same tier scale every other item already uses */
     if (typeof base.settings.sleepWeight === "number" || base.settings.sleepWeight === undefined)
         base.settings.sleepWeight = "high";
+    if (base.settings.recoveryWeight === undefined)
+        base.settings.recoveryWeight = "med";
     base.wetDreams = base.wetDreams || [];
     base.items = (base.items || []).filter((i) => i.id !== "latescreen");
     const NEW_BUILTIN_IDS = ["contentAccess", "checkout", "recoveryLow", "sleepLow", "purposeLow", "purposeHigh", "accountabilityGap", "urgeSurvivalBonus", "sickFlag", "travelFlag"];
@@ -659,6 +662,14 @@ function vigourForDay(day, date, items, settings) {
     if (sw > 0 && d.sleep !== null && d.sleep !== undefined && d.sleep !== "") {
         total += sw;
         done += sw * Math.max(0, Math.min(1, Number(d.sleep) / 100));
+    }
+    /* recovery already penalises Risk below 40% (derived risk item) — this is the
+       Vigour half, same proportional treatment as sleep, making it a genuine dual
+       metric rather than a one-sided penalty */
+    const rw = W_ADH[settings.recoveryWeight] || W_ADH.med;
+    if (rw > 0 && d.recovery !== null && d.recovery !== undefined && d.recovery !== "") {
+        total += rw;
+        done += rw * Math.max(0, Math.min(1, Number(d.recovery) / 100));
     }
     return { done, total };
 }
@@ -2182,6 +2193,10 @@ function App() {
                 React.createElement(Card, null,
                     React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much completing today's intentions counts toward Risk \u2014 proportional to how many you actually met, at this weight."),
                     React.createElement(Seg, { value: data.settings.intentionWeight || "med", allowClear: false, onChange: (v) => v && setSetting("intentionWeight", v), options: WEIGHT_OPTS })),
+                React.createElement(SectionLabel, null, "Recovery Weight"),
+                React.createElement(Card, null,
+                    React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much your Recovery Score counts toward Vigour \u2014 same scale as everything else. Recovery already lowers Risk below 40%; this is the other half, a genuine Double Horns metric rather than a one-way penalty."),
+                    React.createElement(Seg, { value: data.settings.recoveryWeight || "med", allowClear: false, onChange: (v) => v && setSetting("recoveryWeight", v), options: WEIGHT_OPTS })),
                 React.createElement(SectionLabel, null, "Sleep Weight"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much the Sleep Score counts toward Vigour \u2014 same Low/Med/High/V.High scale as every checklist item. Most testosterone release happens during sleep, so it earns real weight by default."),
