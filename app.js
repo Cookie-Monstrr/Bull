@@ -252,7 +252,7 @@ function MonthView({ data, items, settings, onPick, onClose }) {
         const wet = wetKeys.has(k);
         const logged = !!rec && riskLogged(rec, items);
         const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
-        const rs = logged ? Math.round(riskScore({ ...emptyDay(), ...rec }, items, uc, !!relType, 0, settings.intentionWeight)) : null;
+        const rs = logged ? Math.round(riskScore({ ...emptyDay(), ...rec }, items, uc, !!relType, 0, settings.intentionWeight, settings.sleepRiskWeight, settings.recoveryRiskWeight)) : null;
         const vh = rec ? vigourForDay({ ...emptyDay(), ...rec }, d, items, settings) : null;
         const vp = vh && vh.total ? Math.round(pctFrom(vh.done, vh.total)) : null;
         const showBand = !future && vp !== null;
@@ -399,7 +399,9 @@ const DEFAULT_SETTINGS = {
     lapsePlan: "",
     fastMode: "both",
     sleepWeight: "high",
+    sleepRiskWeight: "med",
     recoveryWeight: "med",
+    recoveryRiskWeight: "med",
     breathFirstInhale: 4.5,
     intentionTemplates: [],
     intentionWeight: "med",
@@ -493,6 +495,14 @@ function migrate(old) {
         base.settings.sleepWeight = "high";
     if (base.settings.recoveryWeight === undefined)
         base.settings.recoveryWeight = "med";
+    /* the Prevention-side weight for Sleep/Recovery was previously fixed at "med" on
+       the derived item itself with no settings control — meaning it never actually
+       moved no matter what the (Vigour-only) Sleep/Recovery Weight control was set
+       to. These give Prevention its own independent, user-adjustable weight. */
+    if (base.settings.sleepRiskWeight === undefined)
+        base.settings.sleepRiskWeight = "med";
+    if (base.settings.recoveryRiskWeight === undefined)
+        base.settings.recoveryRiskWeight = "med";
     base.wetDreams = base.wetDreams || [];
     base.items = (base.items || []).filter((i) => i.id !== "latescreen");
     const NEW_BUILTIN_IDS = ["contentAccess", "checkout", "recoveryLow", "sleepLow", "purposeLow", "purposeHigh", "accountabilityGap", "urgeSurvivalBonus", "sickFlag", "travelFlag"];
@@ -549,7 +559,7 @@ function adherenceExpected(item, date, settings) {
     return scheduledOn(item, date);
 }
 /* ---------- scoring ---------- */
-function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty = 0, intentionWeight = "med") {
+function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty = 0, intentionWeight = "med", sleepRiskWeight = "med", recoveryRiskWeight = "med") {
     const d = day || emptyDay();
     const wOf = (id, fallback) => (items.find((i) => i.id === id) || {}).weight || fallback;
     const scaleOf = (id, fallback) => WEIGHT_SCALE[wOf(id, fallback)] || WEIGHT_SCALE[fallback] || 1;
@@ -591,12 +601,13 @@ function riskScore(day, items, urgesSurvived, hadRelapse, accountabilityPenalty 
             r += Math.round(4 * checkoutScale);
     }
     if (d.recovery !== null && d.recovery !== undefined && d.recovery !== "" && Number(d.recovery) < 40) {
-        r += Math.round(10 * scaleOf("recoveryLow", "med"));
+        r += Math.round(10 * (WEIGHT_SCALE[recoveryRiskWeight] || WEIGHT_SCALE.med));
     }
     /* sleep scores on both sides: it already feeds Vigour proportionally, and a poor
-       night is a genuine risk factor in its own right */
+       night is a genuine risk factor in its own right. Prevention and Vigour weights
+       are independent settings — moving one must never move the other. */
     if (d.sleep !== null && d.sleep !== undefined && d.sleep !== "" && Number(d.sleep) < 65) {
-        r += Math.round(10 * scaleOf("sleepLow", "med"));
+        r += Math.round(10 * (WEIGHT_SCALE[sleepRiskWeight] || WEIGHT_SCALE.med));
     }
     if (Array.isArray(d.intentions) && d.intentions.length) {
         const met = d.intentions.filter((i) => i.met).length;
@@ -1385,7 +1396,7 @@ function App() {
     })();
     const accountabilityPenalty = therapistStatus === "setup" || therapistStatus === "overdue" ? 15
         : therapistStatus === "outside" ? 8 : 0;
-    const risk = riskScore(today, items, urgesToday, relapseToday, accountabilityPenalty, data.settings.intentionWeight);
+    const risk = riskScore(today, items, urgesToday, relapseToday, accountabilityPenalty, data.settings.intentionWeight, data.settings.sleepRiskWeight, data.settings.recoveryRiskWeight);
     const h = vigourForDay(today, new Date(), items, data.settings);
     const vigourPct = pctFrom(h.done, h.total);
     const loggedRelapse = data.relapses.length ? Math.max(...data.relapses.map((r) => r.ts)) : null;
@@ -1416,7 +1427,7 @@ function App() {
                 return;
             if (riskLogged(data.days[k], items)) {
                 const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
-                rSum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeySet.has(k), 0, data.settings.intentionWeight);
+                rSum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeySet.has(k), 0, data.settings.intentionWeight, data.settings.sleepRiskWeight, data.settings.recoveryRiskWeight);
                 rN++;
             }
             if (!isFlagged(k)) {
@@ -1458,7 +1469,7 @@ function App() {
                 return;
             if (riskLogged(data.days[k], items) && !data.days[k].excluded) {
                 const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
-                rSum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeys.has(k), 0, data.settings.intentionWeight);
+                rSum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeys.has(k), 0, data.settings.intentionWeight, data.settings.sleepRiskWeight, data.settings.recoveryRiskWeight);
                 rN++;
             }
             if (!flagged(k) && !data.days[k].excluded) {
@@ -1592,7 +1603,7 @@ function App() {
         let sum = 0;
         keys.forEach((k) => {
             const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
-            sum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeySet.has(k), 0, data.settings.intentionWeight);
+            sum += riskScore({ ...emptyDay(), ...data.days[k] }, items, uc, relKeySet.has(k), 0, data.settings.intentionWeight, data.settings.sleepRiskWeight, data.settings.recoveryRiskWeight);
         });
         let hd = 0, ht = 0;
         Object.keys(data.days).forEach((k) => {
@@ -1656,7 +1667,7 @@ function App() {
             const day = data.days[k];
             const uc = data.urges.filter((u) => dateKey(new Date(u.ts)) === k).length;
             const rel = data.relapses.some((r) => dateKey(new Date(r.ts)) === k);
-            out.push({ k, logged: riskLogged(day, items) || rel, rel, score: riskScore({ ...emptyDay(), ...(day || {}) }, items, uc, rel, 0, data.settings.intentionWeight) });
+            out.push({ k, logged: riskLogged(day, items) || rel, rel, score: riskScore({ ...emptyDay(), ...(day || {}) }, items, uc, rel, 0, data.settings.intentionWeight, data.settings.sleepRiskWeight, data.settings.recoveryRiskWeight) });
         }
         return out;
     })();
@@ -1916,17 +1927,6 @@ function App() {
                 prevHabits.length > 0 && (React.createElement(React.Fragment, null,
                     React.createElement(SectionLabel, null, "Protective Habits"),
                     React.createElement(TileGrid, null, prevHabits.map((it) => (React.createElement(Tile, { key: it.id, mode: "protective", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))))),
-                React.createElement(SectionLabel, null, "Recovery"),
-                React.createElement(Card, null,
-                    React.createElement(NumField, { label: "Recovery Score", value: today.recovery, onChange: (v) => setDay("recovery", v), suffix: "%" }),
-                    (() => {
-                        if (!hrvBaseline || today.hrv === null || today.hrv === undefined || today.hrv === "")
-                            return null;
-                        const pct = Math.round((Number(today.hrv) / hrvBaseline - 1) * 100);
-                        const low = pct <= -10;
-                        return React.createElement("div", { className: "text-[10px] mt-2 leading-relaxed", style: { color: low ? "#b62f2b" : "#8a7333" } },
-                            "HRV " + (pct >= 0 ? "+" : "") + pct + "% vs your " + Math.round(hrvBaseline) + "ms baseline" + (low ? " \u2014 notably suppressed" : ""));
-                    })()),
                 React.createElement(SectionLabel, null, "Day Flags"),
                 React.createElement(Card, null,
                     React.createElement("div", { className: "flex gap-2" },
@@ -1957,6 +1957,17 @@ function App() {
                 dualToday.length > 0 && React.createElement(TileGrid, null, dualToday.map((it) => (it.kind === "risk"
                     ? React.createElement(Tile, { key: it.id, mode: "risk", label: it.label, value: today.checks[it.id], onChange: (v) => setCheck(it.id, v) })
                     : React.createElement(Tile, { key: it.id, mode: "vigour", label: it.label, value: today.checks[it.id] === true, onChange: (v) => setCheck(it.id, v) })))),
+                React.createElement(SectionLabel, null, "Recovery"),
+                React.createElement(Card, null,
+                    React.createElement(NumField, { label: "Recovery Score", value: today.recovery, onChange: (v) => setDay("recovery", v), suffix: "%" }),
+                    (() => {
+                        if (!hrvBaseline || today.hrv === null || today.hrv === undefined || today.hrv === "")
+                            return null;
+                        const pct = Math.round((Number(today.hrv) / hrvBaseline - 1) * 100);
+                        const low = pct <= -10;
+                        return React.createElement("div", { className: "text-[10px] mt-2 leading-relaxed", style: { color: low ? "#b62f2b" : "#8a7333" } },
+                            "HRV " + (pct >= 0 ? "+" : "") + pct + "% vs your " + Math.round(hrvBaseline) + "ms baseline" + (low ? " \u2014 notably suppressed" : ""));
+                    })()),
                 React.createElement(SectionLabel, null, "Sleep"),
                 React.createElement(Card, null,
                     React.createElement(NumField, { label: "Sleep Score", value: today.sleep, onChange: (v) => setDay("sleep", v), suffix: "%" })),
@@ -2193,13 +2204,21 @@ function App() {
                 React.createElement(Card, null,
                     React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much completing today's intentions counts toward Risk \u2014 proportional to how many you actually met, at this weight."),
                     React.createElement(Seg, { value: data.settings.intentionWeight || "med", allowClear: false, onChange: (v) => v && setSetting("intentionWeight", v), options: WEIGHT_OPTS })),
-                React.createElement(SectionLabel, null, "Recovery Weight"),
+                React.createElement(SectionLabel, null, "Recovery Weight \u2014 Prevention"),
                 React.createElement(Card, null,
-                    React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much your Recovery Score counts toward Vigour \u2014 same scale as everything else. Recovery already lowers Risk below 40%; this is the other half, a genuine Double Horns metric rather than a one-way penalty."),
+                    React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much a Recovery Score below 40% raises Risk. Independent of the Vigour weight below \u2014 changing one never moves the other."),
+                    React.createElement(Seg, { value: data.settings.recoveryRiskWeight || "med", allowClear: false, onChange: (v) => v && setSetting("recoveryRiskWeight", v), options: WEIGHT_OPTS })),
+                React.createElement(SectionLabel, null, "Recovery Weight \u2014 Vigour"),
+                React.createElement(Card, null,
+                    React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much your Recovery Score counts toward Vigour, proportionally, same scale as everything else \u2014 the other half of the Prevention weight above, a genuine Double Horns metric rather than a one-way penalty."),
                     React.createElement(Seg, { value: data.settings.recoveryWeight || "med", allowClear: false, onChange: (v) => v && setSetting("recoveryWeight", v), options: WEIGHT_OPTS })),
-                React.createElement(SectionLabel, null, "Sleep Weight"),
+                React.createElement(SectionLabel, null, "Sleep Weight \u2014 Prevention"),
                 React.createElement(Card, null,
-                    React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much the Sleep Score counts toward Vigour \u2014 same Low/Med/High/V.High scale as every checklist item. Most testosterone release happens during sleep, so it earns real weight by default."),
+                    React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much a Sleep Score below 65% raises Risk. Independent of the Vigour weight below \u2014 changing one never moves the other."),
+                    React.createElement(Seg, { value: data.settings.sleepRiskWeight || "med", allowClear: false, onChange: (v) => v && setSetting("sleepRiskWeight", v), options: WEIGHT_OPTS })),
+                React.createElement(SectionLabel, null, "Sleep Weight \u2014 Vigour"),
+                React.createElement(Card, null,
+                    React.createElement("div", { className: "text-[11px] text-[#8a8172] mb-2 leading-relaxed" }, "How much the Sleep Score counts toward Vigour, proportionally \u2014 same Low/Med/High/V.High scale as every checklist item. Most testosterone release happens during sleep, so it earns real weight by default."),
                     React.createElement(Seg, { value: data.settings.sleepWeight || "high", allowClear: false, onChange: (v) => v && setSetting("sleepWeight", v), options: WEIGHT_OPTS })),
                 React.createElement(SectionLabel, null, "Therapy Cadence"),
                 React.createElement(Card, null,
