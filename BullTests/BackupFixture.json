@@ -1,0 +1,352 @@
+{
+  "version": 7,
+  "settings": {
+    "purposeText": "I am preparing for her before I have met her. Every clean day is me becoming the man and husband I intend to be on day one — clear-eyed, disciplined, present.\n\nThis urge is a wave. It rises, it peaks, it passes. I do not act on it. I am building something better.",
+    "supplements": [
+      "Zinc",
+      "Magnesium",
+      "Vitamin D"
+    ],
+    "therapistEveryWeeks": 2,
+    "nextCheckin": null,
+    "therapySessions": 0,
+    "therapyNote": "",
+    "lapsePlan": "",
+    "fastMode": "both",
+    "sleepWeight": "vhigh",
+    "sleepRiskWeight": "med",
+    "recoveryWeight": "med",
+    "recoveryRiskWeight": "high",
+    "breathFirstInhale": 4.5,
+    "intentionTemplates": [],
+    "intentionWeight": "med",
+    "morningReminderTime": "08:00",
+    "eveningReminderTime": "21:30",
+    "lastOpenedTs": 1786611600000
+  },
+  "items": [
+    {
+      "id": "lonely",
+      "label": "Home Alone, Unstructured Time",
+      "list": "prev",
+      "kind": "risk",
+      "weight": "high",
+      "freq": "daily"
+    },
+    {
+      "id": "junk",
+      "label": "Junk Food",
+      "list": "both",
+      "kind": "risk",
+      "weight": "med",
+      "vigourWeight": "low",
+      "bucket": "heart",
+      "freq": "daily"
+    },
+    {
+      "id": "coldplunge",
+      "label": "Cold Plunge",
+      "list": "both",
+      "kind": "habit",
+      "weight": "med",
+      "vigourWeight": "low",
+      "bucket": "heart",
+      "freq": "daily",
+      "excusable": true
+    },
+    {
+      "id": "nasalclear",
+      "label": "Nasal Rinse",
+      "list": "both",
+      "kind": "habit",
+      "weight": "med",
+      "vigourWeight": "med",
+      "bucket": "no",
+      "freq": "daily"
+    },
+    {
+      "id": "contentAccess",
+      "label": "Content Access",
+      "sub": "Low / Medium / High, logged daily",
+      "list": "prev",
+      "kind": "tier",
+      "weight": "high"
+    },
+    {
+      "id": "checkout",
+      "label": "Checking Out Women",
+      "sub": "None / A Few / A Lot, logged daily",
+      "list": "prev",
+      "kind": "tier",
+      "weight": "high"
+    },
+    {
+      "id": "recoveryLow",
+      "label": "Recovery Below 40%",
+      "sub": "Auto — from your Recovery Score",
+      "list": "prev",
+      "kind": "derived",
+      "weight": "med"
+    },
+    {
+      "id": "sleepLow",
+      "label": "Sleep Below 65%",
+      "sub": "Auto — from your Sleep Score",
+      "list": "prev",
+      "kind": "derived",
+      "weight": "med"
+    },
+    {
+      "id": "purposeLow",
+      "label": "Low-Purpose Day (1–2)",
+      "sub": "Auto — from your Evening Review",
+      "list": "prev",
+      "kind": "derived",
+      "weight": "med"
+    },
+    {
+      "id": "purposeHigh",
+      "label": "High-Purpose Day (4–5)",
+      "sub": "Auto — protective, from your Evening Review",
+      "list": "prev",
+      "kind": "derived",
+      "weight": "med"
+    },
+    {
+      "id": "accountabilityGap",
+      "label": "Accountability Not On Track",
+      "sub": "Auto — nothing booked, overdue, or too far out",
+      "list": "prev",
+      "kind": "derived",
+      "weight": "high"
+    },
+    {
+      "id": "urgeSurvivalBonus",
+      "label": "Urges Survived Today",
+      "sub": "Auto — protective, from the Urge button",
+      "list": "prev",
+      "kind": "derived",
+      "weight": "med"
+    },
+    {
+      "id": "sickFlag",
+      "label": "Sick Day",
+      "sub": "Auto — from the Sick flag on Today",
+      "list": "prev",
+      "kind": "derived",
+      "weight": "med"
+    },
+    {
+      "id": "travelFlag",
+      "label": "Travelling Day",
+      "sub": "Auto — from the Travelling flag on Today",
+      "list": "prev",
+      "kind": "derived",
+      "weight": "high"
+    },
+    {
+      "id": "kegels",
+      "label": "Kegels",
+      "list": "prime",
+      "kind": "habit",
+      "weight": "high",
+      "freq": [
+        1,
+        3,
+        5,
+        0
+      ],
+      "excusable": true,
+      "bucket": "pelvic"
+    },
+    {
+      "id": "stretches",
+      "label": "Pelvic Floor Stretches",
+      "list": "prime",
+      "kind": "habit",
+      "weight": "med",
+      "freq": [
+        1,
+        3,
+        5,
+        0
+      ],
+      "excusable": true,
+      "bucket": "pelvic"
+    },
+    {
+      "id": "cardio",
+      "label": "Cardio / Boxing",
+      "list": "prime",
+      "kind": "habit",
+      "weight": "high",
+      "freq": [
+        1,
+        3,
+        5,
+        0
+      ],
+      "excusable": true,
+      "bucket": "heart"
+    },
+    {
+      "id": "strength",
+      "label": "Strength Training",
+      "list": "prime",
+      "kind": "habit",
+      "weight": "med",
+      "freq": [
+        2,
+        6
+      ],
+      "excusable": true,
+      "bucket": "test"
+    },
+    {
+      "id": "breathwork",
+      "label": "Breathwork Before Isha",
+      "list": "prime",
+      "kind": "habit",
+      "weight": "med",
+      "freq": "daily",
+      "bucket": "no"
+    },
+    {
+      "id": "fasting",
+      "label": "Fasting",
+      "list": "prime",
+      "kind": "habit",
+      "weight": "med",
+      "freq": "daily",
+      "fastingAuto": true,
+      "bucket": "test"
+    },
+    {
+      "id": "cmst3ramo",
+      "label": "Late Night Phone In Bed",
+      "list": "prev",
+      "kind": "risk",
+      "weight": "med",
+      "freq": "daily"
+    }
+  ],
+  "days": {
+    "2026-08-10": {
+      "checks": {
+        "lonely": true,
+        "coldplunge": false
+      },
+      "access": "med",
+      "checkout": null,
+      "intentions": [],
+      "purposeRating": 4,
+      "recovery": 55,
+      "sleep": 62,
+      "hrv": null,
+      "strain": null,
+      "supplementsTaken": {},
+      "sick": false,
+      "travelling": false,
+      "excluded": false
+    },
+    "2026-08-11": {
+      "checks": {
+        "kegels": true,
+        "junk": false
+      },
+      "access": null,
+      "checkout": null,
+      "intentions": [],
+      "purposeRating": null,
+      "recovery": 70,
+      "sleep": 80,
+      "hrv": null,
+      "strain": null,
+      "supplementsTaken": {
+        "Zinc": true
+      },
+      "sick": false,
+      "travelling": false,
+      "excluded": false
+    },
+    "2026-08-12": {
+      "checks": {
+        "coldplunge": true
+      },
+      "access": null,
+      "checkout": null,
+      "intentions": [],
+      "purposeRating": null,
+      "recovery": null,
+      "sleep": null,
+      "hrv": null,
+      "strain": null,
+      "supplementsTaken": {},
+      "sick": true,
+      "travelling": false,
+      "excluded": false
+    },
+    "2026-08-13": {
+      "checks": {},
+      "access": null,
+      "checkout": "few",
+      "intentions": [],
+      "purposeRating": null,
+      "recovery": null,
+      "sleep": null,
+      "hrv": null,
+      "strain": null,
+      "supplementsTaken": {},
+      "sick": false,
+      "travelling": false,
+      "excluded": true
+    }
+  },
+  "urges": [
+    {
+      "ts": 1786370400000,
+      "triggers": [
+        "Home Alone, Unstructured Time"
+      ],
+      "responses": [
+        "Went outside"
+      ]
+    },
+    {
+      "ts": 1786482000000
+    }
+  ],
+  "relapses": [
+    {
+      "ts": 1785924000000,
+      "type": "edge",
+      "triggers": [
+        "Junk Food"
+      ]
+    }
+  ],
+  "wetDreams": [
+    {
+      "ts": 1786255200000
+    }
+  ],
+  "rules": [
+    {
+      "triggers": [
+        "Home Alone, Unstructured Time"
+      ],
+      "responses": [
+        "Went outside"
+      ],
+      "count": 3,
+      "ts": 1785542400000
+    },
+    {
+      "trigger": "Junk Food",
+      "response": "Cold water",
+      "count": 1,
+      "ts": 1784505600000
+    }
+  ],
+  "firstUse": 1780272000000
+}

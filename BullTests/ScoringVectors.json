@@ -1,0 +1,1906 @@
+{
+  "riskCases": [
+    {
+      "name": "baseline empty day",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 15
+    },
+    {
+      "name": "relapse forces floor 85",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": true,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 85
+    },
+    {
+      "name": "relapse floor beats low score",
+      "day": {
+        "checks": {
+          "coldplunge": true,
+          "nasalclear": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 3,
+      "hadRelapse": true,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 85
+    },
+    {
+      "name": "single high risk item happened",
+      "day": {
+        "checks": {
+          "lonely": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 35
+    },
+    {
+      "name": "protective habit done",
+      "day": {
+        "checks": {
+          "coldplunge": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 10
+    },
+    {
+      "name": "dual risk item happened",
+      "day": {
+        "checks": {
+          "junk": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 25
+    },
+    {
+      "name": "content access high",
+      "day": {
+        "checks": {},
+        "access": "high",
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 40
+    },
+    {
+      "name": "content access med",
+      "day": {
+        "checks": {},
+        "access": "med",
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 27
+    },
+    {
+      "name": "content access low is free",
+      "day": {
+        "checks": {},
+        "access": "low",
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 15
+    },
+    {
+      "name": "checkout a lot",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": "lot",
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 27
+    },
+    {
+      "name": "checkout a few",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": "few",
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 19
+    },
+    {
+      "name": "recovery below 40 at med",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": 20,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 21
+    },
+    {
+      "name": "recovery below 40 at vhigh",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": 20,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "vhigh",
+      "expected": 29
+    },
+    {
+      "name": "recovery below 40 at low",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": 20,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "low",
+      "expected": 18
+    },
+    {
+      "name": "recovery at 40 exactly is free",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": 40,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 15
+    },
+    {
+      "name": "sleep below 65 at med",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": 30,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 21
+    },
+    {
+      "name": "sleep below 65 at vhigh",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": 30,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "vhigh",
+      "recoveryRiskWeight": "med",
+      "expected": 29
+    },
+    {
+      "name": "sleep at 65 exactly is free",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": 65,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 15
+    },
+    {
+      "name": "sleep+recovery both low independent weights",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": 20,
+        "sleep": 30,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "vhigh",
+      "recoveryRiskWeight": "low",
+      "expected": 32
+    },
+    {
+      "name": "purpose low",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": 1,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 21
+    },
+    {
+      "name": "purpose high protective",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": 5,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 12
+    },
+    {
+      "name": "purpose neutral 3",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": 3,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 15
+    },
+    {
+      "name": "intentions all met",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [
+          {
+            "met": true
+          },
+          {
+            "met": true
+          }
+        ],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 10
+    },
+    {
+      "name": "intentions half met",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [
+          {
+            "met": true
+          },
+          {
+            "met": false
+          }
+        ],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 12
+    },
+    {
+      "name": "intentions none met",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [
+          {
+            "met": false
+          },
+          {
+            "met": false
+          }
+        ],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 15
+    },
+    {
+      "name": "intentions all met vhigh weight",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [
+          {
+            "met": true
+          }
+        ],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "vhigh",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 4
+    },
+    {
+      "name": "urges survived 1",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 1,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 13
+    },
+    {
+      "name": "urges survived 3 hits cap",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 3,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 9
+    },
+    {
+      "name": "urges survived 10 still capped",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 10,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 8
+    },
+    {
+      "name": "accountability penalty 15",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 15,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 30
+    },
+    {
+      "name": "accountability penalty 8",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 8,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 23
+    },
+    {
+      "name": "sick flag",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": true,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 25
+    },
+    {
+      "name": "travelling flag",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": true
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 35
+    },
+    {
+      "name": "sick excuses excusable item",
+      "day": {
+        "checks": {
+          "coldplunge": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": true,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 25
+    },
+    {
+      "name": "sick does not excuse non-excusable",
+      "day": {
+        "checks": {
+          "nasalclear": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": true,
+        "travelling": false
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 20
+    },
+    {
+      "name": "clamp floor at 0",
+      "day": {
+        "checks": {
+          "coldplunge": true,
+          "nasalclear": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [
+          {
+            "met": true
+          }
+        ],
+        "purposeRating": 5,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 3,
+      "hadRelapse": false,
+      "accountabilityPenalty": 0,
+      "intentionWeight": "vhigh",
+      "sleepRiskWeight": "med",
+      "recoveryRiskWeight": "med",
+      "expected": 0
+    },
+    {
+      "name": "clamp ceiling at 100",
+      "day": {
+        "checks": {
+          "lonely": true,
+          "junk": true
+        },
+        "access": "high",
+        "checkout": "lot",
+        "intentions": [],
+        "purposeRating": 1,
+        "recovery": 10,
+        "sleep": 10,
+        "supplementsTaken": {},
+        "sick": true,
+        "travelling": true
+      },
+      "urgesSurvived": 0,
+      "hadRelapse": false,
+      "accountabilityPenalty": 15,
+      "intentionWeight": "med",
+      "sleepRiskWeight": "vhigh",
+      "recoveryRiskWeight": "vhigh",
+      "expected": 100
+    },
+    {
+      "name": "kitchen sink mixed",
+      "day": {
+        "checks": {
+          "lonely": true,
+          "junk": false,
+          "coldplunge": true
+        },
+        "access": "med",
+        "checkout": "few",
+        "intentions": [
+          {
+            "met": true
+          },
+          {
+            "met": false
+          }
+        ],
+        "purposeRating": 4,
+        "recovery": 35,
+        "sleep": 50,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "urgesSurvived": 2,
+      "hadRelapse": false,
+      "accountabilityPenalty": 8,
+      "intentionWeight": "high",
+      "sleepRiskWeight": "high",
+      "recoveryRiskWeight": "low",
+      "expected": 56
+    }
+  ],
+  "vigourCases": [
+    {
+      "name": "empty monday default settings",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 0,
+      "expectedTotal": 18
+    },
+    {
+      "name": "empty tuesday (strength day)",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-18",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 0,
+      "expectedTotal": 10
+    },
+    {
+      "name": "kegels done monday",
+      "day": {
+        "checks": {
+          "kegels": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 3,
+      "expectedTotal": 18
+    },
+    {
+      "name": "strength done tuesday",
+      "day": {
+        "checks": {
+          "strength": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-18",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 2,
+      "expectedTotal": 10
+    },
+    {
+      "name": "strength done monday not scheduled",
+      "day": {
+        "checks": {
+          "strength": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 0,
+      "expectedTotal": 18
+    },
+    {
+      "name": "dual risk avoided earns",
+      "day": {
+        "checks": {
+          "junk": false
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 1,
+      "expectedTotal": 18
+    },
+    {
+      "name": "dual risk happened costs",
+      "day": {
+        "checks": {
+          "junk": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": -1,
+      "expectedTotal": 18
+    },
+    {
+      "name": "dual risk unlogged neutral",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 0,
+      "expectedTotal": 18
+    },
+    {
+      "name": "supplements none taken",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 0,
+      "expectedTotal": 18
+    },
+    {
+      "name": "supplements all taken",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {
+          "Zinc": true,
+          "Magnesium": true,
+          "Vitamin D": true
+        },
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 2,
+      "expectedTotal": 18
+    },
+    {
+      "name": "supplements partial",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {
+          "Zinc": true
+        },
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 0.6666666666666666,
+      "expectedTotal": 18
+    },
+    {
+      "name": "supplements empty list",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 0,
+      "expectedTotal": 16
+    },
+    {
+      "name": "sleep 100 at high",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": 100,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 3,
+      "expectedTotal": 21
+    },
+    {
+      "name": "sleep 50 at high",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": 50,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 1.5,
+      "expectedTotal": 21
+    },
+    {
+      "name": "sleep 50 at low",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": 50,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "low",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 0.5,
+      "expectedTotal": 19
+    },
+    {
+      "name": "sleep 50 at vhigh",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": 50,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "vhigh",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 2,
+      "expectedTotal": 22
+    },
+    {
+      "name": "recovery 100 at med",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": 100,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 2,
+      "expectedTotal": 20
+    },
+    {
+      "name": "recovery 50 at med",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": 50,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 1,
+      "expectedTotal": 20
+    },
+    {
+      "name": "recovery 50 at vhigh",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": 50,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "vhigh",
+        "fastMode": "both"
+      },
+      "expectedDone": 2,
+      "expectedTotal": 22
+    },
+    {
+      "name": "sleep and recovery independent",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": 40,
+        "sleep": 80,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "low",
+        "recoveryWeight": "vhigh",
+        "fastMode": "both"
+      },
+      "expectedDone": 2.4000000000000004,
+      "expectedTotal": 23
+    },
+    {
+      "name": "sleep over 100 clamps",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": 150,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 3,
+      "expectedTotal": 21
+    },
+    {
+      "name": "sick excuses excusable prime items",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": true,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 0,
+      "expectedTotal": 9
+    },
+    {
+      "name": "travelling excuses excusable prime items",
+      "day": {
+        "checks": {},
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": true
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 0,
+      "expectedTotal": 9
+    },
+    {
+      "name": "sick with nonexcusable done",
+      "day": {
+        "checks": {
+          "breathwork": true,
+          "nasalclear": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": null,
+        "sleep": null,
+        "supplementsTaken": {},
+        "sick": true,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 4,
+      "expectedTotal": 9
+    },
+    {
+      "name": "full good monday",
+      "day": {
+        "checks": {
+          "kegels": true,
+          "stretches": true,
+          "cardio": true,
+          "breathwork": true,
+          "nasalclear": true,
+          "coldplunge": true,
+          "junk": false
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": 85,
+        "sleep": 90,
+        "supplementsTaken": {
+          "Zinc": true,
+          "Magnesium": true,
+          "Vitamin D": true
+        },
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": 20.4,
+      "expectedTotal": 23
+    },
+    {
+      "name": "full bad monday",
+      "day": {
+        "checks": {
+          "kegels": false,
+          "stretches": false,
+          "cardio": false,
+          "breathwork": false,
+          "nasalclear": false,
+          "coldplunge": false,
+          "junk": true
+        },
+        "access": null,
+        "checkout": null,
+        "intentions": [],
+        "purposeRating": null,
+        "recovery": 15,
+        "sleep": 20,
+        "supplementsTaken": {},
+        "sick": false,
+        "travelling": false
+      },
+      "date": "2026-08-17",
+      "settings": {
+        "supplements": [
+          "Zinc",
+          "Magnesium",
+          "Vitamin D"
+        ],
+        "sleepWeight": "high",
+        "recoveryWeight": "med",
+        "fastMode": "both"
+      },
+      "expectedDone": -0.09999999999999992,
+      "expectedTotal": 23
+    }
+  ],
+  "fastingCases": [
+    {
+      "date": "2026-08-24",
+      "fastMode": "both",
+      "dow": 1,
+      "hijriDay": 12,
+      "expectedDone": 2,
+      "expectedTotal": 16
+    },
+    {
+      "date": "2026-08-24",
+      "fastMode": "weekly",
+      "dow": 1,
+      "hijriDay": 12,
+      "expectedDone": 2,
+      "expectedTotal": 16
+    },
+    {
+      "date": "2026-08-24",
+      "fastMode": "lunar",
+      "dow": 1,
+      "hijriDay": 12,
+      "expectedDone": 0,
+      "expectedTotal": 14
+    },
+    {
+      "date": "2026-08-25",
+      "fastMode": "both",
+      "dow": 2,
+      "hijriDay": 13,
+      "expectedDone": 2,
+      "expectedTotal": 10
+    },
+    {
+      "date": "2026-08-25",
+      "fastMode": "weekly",
+      "dow": 2,
+      "hijriDay": 13,
+      "expectedDone": 0,
+      "expectedTotal": 8
+    },
+    {
+      "date": "2026-08-25",
+      "fastMode": "lunar",
+      "dow": 2,
+      "hijriDay": 13,
+      "expectedDone": 2,
+      "expectedTotal": 10
+    },
+    {
+      "date": "2026-08-26",
+      "fastMode": "both",
+      "dow": 3,
+      "hijriDay": 14,
+      "expectedDone": 2,
+      "expectedTotal": 16
+    },
+    {
+      "date": "2026-08-26",
+      "fastMode": "weekly",
+      "dow": 3,
+      "hijriDay": 14,
+      "expectedDone": 0,
+      "expectedTotal": 14
+    },
+    {
+      "date": "2026-08-26",
+      "fastMode": "lunar",
+      "dow": 3,
+      "hijriDay": 14,
+      "expectedDone": 2,
+      "expectedTotal": 16
+    },
+    {
+      "date": "2026-08-27",
+      "fastMode": "both",
+      "dow": 4,
+      "hijriDay": 15,
+      "expectedDone": 2,
+      "expectedTotal": 8
+    },
+    {
+      "date": "2026-08-27",
+      "fastMode": "weekly",
+      "dow": 4,
+      "hijriDay": 15,
+      "expectedDone": 2,
+      "expectedTotal": 8
+    },
+    {
+      "date": "2026-08-27",
+      "fastMode": "lunar",
+      "dow": 4,
+      "hijriDay": 15,
+      "expectedDone": 2,
+      "expectedTotal": 8
+    },
+    {
+      "date": "2026-08-28",
+      "fastMode": "both",
+      "dow": 5,
+      "hijriDay": 16,
+      "expectedDone": 0,
+      "expectedTotal": 14
+    },
+    {
+      "date": "2026-08-28",
+      "fastMode": "weekly",
+      "dow": 5,
+      "hijriDay": 16,
+      "expectedDone": 0,
+      "expectedTotal": 14
+    },
+    {
+      "date": "2026-08-28",
+      "fastMode": "lunar",
+      "dow": 5,
+      "hijriDay": 16,
+      "expectedDone": 0,
+      "expectedTotal": 14
+    },
+    {
+      "date": "2026-09-23",
+      "fastMode": "both",
+      "dow": 3,
+      "hijriDay": 12,
+      "expectedDone": 0,
+      "expectedTotal": 14
+    },
+    {
+      "date": "2026-09-23",
+      "fastMode": "weekly",
+      "dow": 3,
+      "hijriDay": 12,
+      "expectedDone": 0,
+      "expectedTotal": 14
+    },
+    {
+      "date": "2026-09-23",
+      "fastMode": "lunar",
+      "dow": 3,
+      "hijriDay": 12,
+      "expectedDone": 0,
+      "expectedTotal": 14
+    },
+    {
+      "date": "2026-09-24",
+      "fastMode": "both",
+      "dow": 4,
+      "hijriDay": 13,
+      "expectedDone": 2,
+      "expectedTotal": 8
+    },
+    {
+      "date": "2026-09-24",
+      "fastMode": "weekly",
+      "dow": 4,
+      "hijriDay": 13,
+      "expectedDone": 2,
+      "expectedTotal": 8
+    },
+    {
+      "date": "2026-09-24",
+      "fastMode": "lunar",
+      "dow": 4,
+      "hijriDay": 13,
+      "expectedDone": 2,
+      "expectedTotal": 8
+    },
+    {
+      "date": "2026-09-25",
+      "fastMode": "both",
+      "dow": 5,
+      "hijriDay": 14,
+      "expectedDone": 2,
+      "expectedTotal": 16
+    },
+    {
+      "date": "2026-09-25",
+      "fastMode": "weekly",
+      "dow": 5,
+      "hijriDay": 14,
+      "expectedDone": 0,
+      "expectedTotal": 14
+    },
+    {
+      "date": "2026-09-25",
+      "fastMode": "lunar",
+      "dow": 5,
+      "hijriDay": 14,
+      "expectedDone": 2,
+      "expectedTotal": 16
+    },
+    {
+      "date": "2026-09-26",
+      "fastMode": "both",
+      "dow": 6,
+      "hijriDay": 15,
+      "expectedDone": 2,
+      "expectedTotal": 10
+    },
+    {
+      "date": "2026-09-26",
+      "fastMode": "weekly",
+      "dow": 6,
+      "hijriDay": 15,
+      "expectedDone": 0,
+      "expectedTotal": 8
+    },
+    {
+      "date": "2026-09-26",
+      "fastMode": "lunar",
+      "dow": 6,
+      "hijriDay": 15,
+      "expectedDone": 2,
+      "expectedTotal": 10
+    },
+    {
+      "date": "2026-09-27",
+      "fastMode": "both",
+      "dow": 0,
+      "hijriDay": 16,
+      "expectedDone": 0,
+      "expectedTotal": 14
+    },
+    {
+      "date": "2026-09-27",
+      "fastMode": "weekly",
+      "dow": 0,
+      "hijriDay": 16,
+      "expectedDone": 0,
+      "expectedTotal": 14
+    },
+    {
+      "date": "2026-09-27",
+      "fastMode": "lunar",
+      "dow": 0,
+      "hijriDay": 16,
+      "expectedDone": 0,
+      "expectedTotal": 14
+    }
+  ]
+}

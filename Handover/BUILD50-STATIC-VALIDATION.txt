@@ -1,0 +1,12 @@
+Bull Native v3.4 build 50 static validation — 2026-09-07
+
+PASS: 73 Swift files parse with no syntax errors
+PASS: Xcode project parses; SharedFigures belongs to app and widget
+PASS: 4 property lists and 48 JSON files parse
+PASS: widget Info.plist defines the required WidgetKit NSExtension dictionary
+PASS: 20 production RGBA assets validated (4616075 bytes)
+PASS: six configurations use build number 50; three widgets registered
+INFO: 209 XCTest methods across 13 files (not executed without Xcode)
+
+Limits: Xcode, Apple SDK, simulator and device were not available. This report
+does not claim compilation, executed XCTest, signing or WidgetKit rendering.

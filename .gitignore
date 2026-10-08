@@ -1,0 +1,41 @@
+# macOS
+.DS_Store
+
+# Xcode build products and per-user state
+build/
+DerivedData/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# Swift Package Manager build artifacts
+.build/
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+
+# Dependency-manager build artifacts
+Pods/
+Carthage/Build/
+
+# Archives, exports, and test output
+*.xcarchive
+*.ipa
+*.dSYM.zip
+*.dSYM
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Local credentials and secrets
+.env
+.env.*
+!.env.example
+*.p8
+*.p12
+*.mobileprovision
+AuthKey_*.p8
+GoogleService-Info.plist
+Secrets.swift
+Secrets.plist

@@ -1,0 +1,24 @@
+Bull 3.4 build 49 — static validation, 2026-09-06
+
+PASS: 71 Swift files parsed by tree-sitter-swift, no syntax-tree errors.
+PASS: Xcode project parsed by openstep_parser: 41 objects.
+PASS: All six target build configurations use build 49.
+PASS: Three XML plist/entitlement files parse; Bull URL scheme present.
+PASS: 27 JSON files parse, including assets and backup fixtures.
+PASS: No files from the supplied build-48 project removed.
+PASS: Artwork assets unchanged byte for byte.
+PASS: Existing XCTest files unchanged byte for byte.
+PASS: Core scoring logic files unchanged; only V30Models.swift adds optional
+      component snapshot encoding in Core.
+PASS: App/widget entitlements unchanged byte for byte.
+PASS: Face Off and Today's Priorities registered; priorities URL wired.
+
+XCTest source inventory: 202 methods in 12 files, including 24 new build-49
+regression methods. These methods have NOT been executed here.
+
+NOT VERIFIED: Swift type checking, Xcode build, signing, XCTest execution,
+WidgetKit rendered layouts, device UI/accessibility, HealthKit, Layla,
+two-account CloudKit revocation, background delivery or performance on long histories.
+No Swift/Xcode SDK or Apple device is installed in this environment.
+
+Required device gates and limitations: BUILD49-CHANGES-AND-TESTING.md.

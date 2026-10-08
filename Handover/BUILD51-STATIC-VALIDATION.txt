@@ -1,0 +1,17 @@
+Bull Native v3.4 build 51 static validation
+Date: 2026-09-07
+
+PASS: 74 Swift files parsed with no syntax errors.
+PASS: Xcode project parsed; identity, signing team and SharedFigures membership are preserved.
+PASS: 4 property lists/entitlements and all JSON files parsed.
+PASS: Widget Info.plist defines the WidgetKit extension point.
+PASS: 20 production figure assets retain their RGBA transparency contract.
+PASS: All six build configurations use build 51; five widgets are registered.
+PASS: BullData remains payload v15; the new four-score era is version 10.
+PASS: Graph-widget payload contains no relapse field.
+PASS: Cited obsolete Stats/widget copy is absent.
+INFO: 215 XCTest methods across 14 files were source-checked.
+
+NOT RUN: Xcode compilation, XCTest execution, simulator/device UI, WidgetKit rendering,
+CloudKit invitation delivery/acceptance, HealthKit, app-background timing and signing.
+Xcode and Apple SDKs are unavailable in this environment.

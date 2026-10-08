@@ -1,0 +1,344 @@
+{
+  "baseline": "Supplied Bull v3.4 Build 50 (last confirmed installed)",
+  "target": "Bull v3.4 Build 52",
+  "base_archive_sha256": "cb1854f889c16c447753714da0f9c4ff4cd0a98458065c3bbd8f2373da48a44b",
+  "note": "Cumulative delta from Build 50. No deletions. This manifest itself is included without a self-referential hash.",
+  "files": [
+    {
+      "path": "Bull/BullStore.swift",
+      "status": "modified",
+      "build50_sha256": "326fcb93ea3201353452de69007db8e97f7bfd76cb33cf1942bf16772760eb3a",
+      "build52_sha256": "ab70d8f876a6d11fc722e1720e714b1df6ca653afbf4a4cbd1bda3583248e367"
+    },
+    {
+      "path": "Bull/Components.swift",
+      "status": "modified",
+      "build50_sha256": "24583323e2ea31107dcf20de4ba80f1e5247dc258f8c043b100de2460ab28f6e",
+      "build52_sha256": "466f92498b83e8a659a85b3b9707f86968561e502c9eb1b7b5f6edf8cd5fbe84"
+    },
+    {
+      "path": "Bull/ContentView.swift",
+      "status": "modified",
+      "build50_sha256": "6f784e7fc884fe9407462dc6936d19545ada13091ade926ad50efbad068e9a00",
+      "build52_sha256": "56eb3544e8e562b84641ff032448f6cf4f94d94f80f82bdd2531a3b5773d635a"
+    },
+    {
+      "path": "Bull/Core/Models.swift",
+      "status": "modified",
+      "build50_sha256": "f298b61e54f010d66903cf282cce4759551d94cd72d080babdb0fb51a5629234",
+      "build52_sha256": "9ed6c7743a0aa7fe7874ad8d1ccda1f84f4845e0714e521b61d1fe96e5dd3664"
+    },
+    {
+      "path": "Bull/Core/V30Models.swift",
+      "status": "modified",
+      "build50_sha256": "18f3c0c7a46740f54bb93f01d3c0b3869f1a0a748b0555f92c6a855dfd3cbff7",
+      "build52_sha256": "12f19ff5307d651433895d5ecca44ae8e0f4e1f4ce14bc47481731149f00ace6"
+    },
+    {
+      "path": "Bull/Core/V31Logic.swift",
+      "status": "modified",
+      "build50_sha256": "3526752e393545be1760871d10772ef2b942c368eafda58f1be4a09cb31be875",
+      "build52_sha256": "0cf25df16fdf9feba367ec2e532963cefef41f9a7c3afafea6773c8de7ddc4fb"
+    },
+    {
+      "path": "Bull/Core/V33Logic.swift",
+      "status": "modified",
+      "build50_sha256": "12e299bd8247109cbef10d8d63e2265205ed8d78971372cad6bbd1c2354ef9e7",
+      "build52_sha256": "53407bab68333e0bc7f25047ae2055c19eda502cfa40a9844939f952f929f439"
+    },
+    {
+      "path": "Bull/ExercisePlanView.swift",
+      "status": "modified",
+      "build50_sha256": "db97a97daff6365a9bfa16f4d7c25fe902978277c30e3f5ae736622d12aba6ec",
+      "build52_sha256": "e2f0ce6739981eb8cbfa051aed1978d9c651d98a481f52c7711ec4e1f2e68f49"
+    },
+    {
+      "path": "Bull/GuideView.swift",
+      "status": "modified",
+      "build50_sha256": "08a17aea81a8c5346af5d82db41dc4433a966b595c58edf03381da84104d0450",
+      "build52_sha256": "46cd21e29f9862e067d155e77872e0af4746af0acbabfb324677090bd32fcaa0"
+    },
+    {
+      "path": "Bull/ItemInfo.swift",
+      "status": "modified",
+      "build50_sha256": "80d662edbd0452652e1e9b9da7adfde9af9656f070bc2434dfb5209fd88c87cb",
+      "build52_sha256": "719943878228db790adcfda2df638237f97f5370bb40a81b3d67910c2a376846"
+    },
+    {
+      "path": "Bull/ItemManagementView.swift",
+      "status": "modified",
+      "build50_sha256": "daa854f2cf1974c2a968c08b15ef0638fe2240c3e8216fcf0374fa682a7615fd",
+      "build52_sha256": "48eee1c034ac752fc8889ebe821072e1c2ec1e9540d0d8478b85f72a48b45565"
+    },
+    {
+      "path": "Bull/PatternAnalyzer.swift",
+      "status": "modified",
+      "build50_sha256": "56b4ec01dfdad85543f22ca628ec62e86cfbb9cf8df321e379d343ff9cebbaff",
+      "build52_sha256": "a0f04b05256b6b37a50a197370abd754f216a2c7885ec8e0dd3a2dc2f5ddd502"
+    },
+    {
+      "path": "Bull/PatternsView.swift",
+      "status": "modified",
+      "build50_sha256": "828d1850fea2346f7e6e6388d6fd25a1767de79c72a3e0e02e4756ceaf747d15",
+      "build52_sha256": "691faa262f7431009365f481c5bf382df75868d8cb10bd0a51743127d14dafac"
+    },
+    {
+      "path": "Bull/PersonalExperimentManagerView.swift",
+      "status": "modified",
+      "build50_sha256": "0f74e894cf092523bb59f41f0d4fe85d93849ac1fd9fd6fb184d48f925118a6f",
+      "build52_sha256": "da2479a39ce3425fad31af224a5399663274549e18308ff08f72089f2d8c9836"
+    },
+    {
+      "path": "Bull/SexualCheckInView.swift",
+      "status": "modified",
+      "build50_sha256": "c8a021d3d6476fba7a40424834967b09c2110cf83c6af6e9a9a6111ceb747f28",
+      "build52_sha256": "bcd20edc6584ee0343d0a13f25071340cacebd1a4ddf79470bcf883d0d0ddd42"
+    },
+    {
+      "path": "Bull/TherapistCloudService.swift",
+      "status": "modified",
+      "build50_sha256": "3e2191cd4a1ae1adaee4b9516b90a80a9abd759efe0b85306438d3562c902d22",
+      "build52_sha256": "0afaf284c675bd9347d9f6804208d0063cfdfcebb8974ce2f7d4151b4167cf20"
+    },
+    {
+      "path": "Bull/TherapistOversightViews.swift",
+      "status": "modified",
+      "build50_sha256": "37d72506379c5e0d692934a3fdbd389cdadc2325eb22438763e879a97abf73de",
+      "build52_sha256": "3c6b983e0a87b86f7ae1a33f7455ca5aa1ad59d0eb4248f18e80a8e016413f64"
+    },
+    {
+      "path": "Bull/TodayView.swift",
+      "status": "modified",
+      "build50_sha256": "66b586ccc35c5213dfab1cf3a7e99122c46d0a7a8b3ffc26378ec0b778618518",
+      "build52_sha256": "f72285b6bcb1b30ab1000c9673cfd38cc2542a19d7dcc1257c04d3f1967c0f9a"
+    },
+    {
+      "path": "Bull/TriggerResponseLibraryView.swift",
+      "status": "modified",
+      "build50_sha256": "da9cb0805cace479dbe6a0536d9065f52dedef5ec7451a8376d8fd833908b638",
+      "build52_sha256": "c40f250fbc903d331fee89021f5ea8eb78db13858cc91fe819f9913198c6eb0b"
+    },
+    {
+      "path": "Bull/WidgetSnapshotBridge.swift",
+      "status": "modified",
+      "build50_sha256": "48162ca58cec9f09b487e9c1fba0866b8e8b645a46338b8c3cfc5aefded779f4",
+      "build52_sha256": "bbcbe5d21624bebf9987f4cd73da20a136b9da4045da48be6968edbaf71f765f"
+    },
+    {
+      "path": "Bull.xcodeproj/project.pbxproj",
+      "status": "modified",
+      "build50_sha256": "8c86a91ad54274178e209a8d3f7d5656db9b3bbf581e70d00a3d1b6a16adbb69",
+      "build52_sha256": "6e56af4a00a8e7a1b9f67bc8b36cef8066a242dd2491e6f88e5d0e88d283a186"
+    },
+    {
+      "path": "BullTests/Build51Tests.swift",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "8e7ad1d4d5ad47d28804f23caaeb8dae9f76125c3e31df3e1633d5904eb358d4"
+    },
+    {
+      "path": "BullTests/V31Tests.swift",
+      "status": "modified",
+      "build50_sha256": "535aa311b2a98618c58bba1d17193723367d6d85edd4b08eceefcc539e959247",
+      "build52_sha256": "a1720d37c73c74090939d82f6b2621489255b9db962ad3b129d27730d2ef3a9a"
+    },
+    {
+      "path": "BullTests/V321Tests.swift",
+      "status": "modified",
+      "build50_sha256": "92f4e48b2d14ff73accfa84516d36db63abc3e6f809cf1f5e72be46683ce3ac5",
+      "build52_sha256": "53e3e4f3d3e743feabfad4a2d3a454fe9f7c6d142e53bda3049b6a35dd24b1ec"
+    },
+    {
+      "path": "BullTests/V33Tests.swift",
+      "status": "modified",
+      "build50_sha256": "6384966e3629cc27fc419c4b7713063c5c5111d6c3c79567f7e7a64deb81a00a",
+      "build52_sha256": "046aa8cb42dcca746e3b89da76817d82c86dd6e045bb129d725d335ac5c13ca9"
+    },
+    {
+      "path": "BullWidgets/BullWidgets.swift",
+      "status": "modified",
+      "build50_sha256": "e82db0d0c33a412887c02e82a0c1da466229a3a8b13841373c744db1fae08783",
+      "build52_sha256": "c605d09d9c85d4b45d5d69ab79bc7d423a9e37b3aaea882f28f2965a7e8a0cf3"
+    },
+    {
+      "path": "Handover/Approved-Figure-Sources/sorcerer-1.png",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "cce2fbeecd4866480b11747fb139bbb27d2bf8e13a71dc826aab3010f4a6511e"
+    },
+    {
+      "path": "Handover/Approved-Figure-Sources/sorcerer-2.png",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "f1c542b1b1c3931f3850dce39acde53091382503471d6ad5e7076eeeed0cac45"
+    },
+    {
+      "path": "Handover/Approved-Figure-Sources/sorcerer-3.png",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "4cab87d6b5668527095997b78ad7d79b68a612d751c186ebfbf51eab4c8bd8f6"
+    },
+    {
+      "path": "Handover/Approved-Figure-Sources/sorcerer-4.png",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "8ed425548e80eb12e8bf7b4ff48bacae86240391b1d6b5c49561c7091ce21d12"
+    },
+    {
+      "path": "Handover/Approved-Figure-Sources/sorcerer-5.png",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "315fbe633d35ec46d551eeb11075a260d2799da17540a32b1cc2dfd53dbd156c"
+    },
+    {
+      "path": "Handover/Approved-Figure-Sources/titan-1.png",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "193cc2c37f3ba714ab2692cb0b8eb3c8dfa3eaa7ddc27887a582b4a6e62bedb6"
+    },
+    {
+      "path": "Handover/Approved-Figure-Sources/titan-2.png",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "fe30bdff378465c3f55db78f438cfaa24cdeb361908f2a785b3d3eadc44f9f89"
+    },
+    {
+      "path": "Handover/Approved-Figure-Sources/titan-3.png",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "221a63c73520b1f236972d4e7fc93e715d5b9b283929adbc7d1dbfcdcce87509"
+    },
+    {
+      "path": "Handover/Approved-Figure-Sources/titan-4.png",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "02ae25fd7ce7705b535984f324d1089e09e33bf063f746bc9872e2b4d3fa0578"
+    },
+    {
+      "path": "Handover/Approved-Figure-Sources/titan-5.png",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "11b334230edfc777b9db78039f5e5e565211baf6f9e63d498734b5b1445c883b"
+    },
+    {
+      "path": "Handover/BUILD51-CHANGED-FILES.txt",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "238aae4685f5bca99e1c60fc5c6f4bbdd8c60da2bddf7eb5601e7ebf9a7022ff"
+    },
+    {
+      "path": "Handover/BUILD51-CHANGES-AND-TESTING.md",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "222317ccfde0dbee0473120f274b1108c2b63c484ee5e24d94141b8e968abfc6"
+    },
+    {
+      "path": "Handover/BUILD51-STATIC-VALIDATION.txt",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "a1b6893f049e99b824b18e7f359d1e53999274a9f8801937ce148095c60a6459"
+    },
+    {
+      "path": "Handover/BUILD52-ARTWORK-MANIFEST.json",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "32db02b153c716255017207584c4823f8aab9e66c490f21083f8333b05d9cf92"
+    },
+    {
+      "path": "Handover/BUILD52-CHANGES-AND-TESTING.md",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "7d9bc4fd1dd4de3c4c72e9b50803c0113862498d40ed7cdd6346a74023302c58"
+    },
+    {
+      "path": "Handover/BUILD52-FIGURE-WIDGET-PREVIEW.png",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "8885b034f741214cacacc1160f94f1461acbb4f2c1b23993deb0ad8ac43c548b"
+    },
+    {
+      "path": "Handover/BUILD52-STATIC-VALIDATION.txt",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "b8e3a602dbfbe4d445ee91f560806ea65188da5e172caf3a0a6bc84792adae89"
+    },
+    {
+      "path": "Handover/validate_build51.py",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "54d759421b3bf487be73eae614b2bf6d6bdbb0f65f92cfc5eb57e5a4c1924a1c"
+    },
+    {
+      "path": "Handover/validate_build52.py",
+      "status": "added",
+      "build50_sha256": null,
+      "build52_sha256": "f1097659c0b6e905bfc3b867e2fd5fcedf8e7f3014c84039e03b973bbec1edbe"
+    },
+    {
+      "path": "SharedFigures/BullFigureArtwork.swift",
+      "status": "modified",
+      "build50_sha256": "9bd09b3b080e373b71780f134cbebacdb1864e9807b5363018cc84b3d6a5aace",
+      "build52_sha256": "ae0fd77bf6b9fde70cb488016448092d79e0e38a9324903414b613477b7a2b15"
+    },
+    {
+      "path": "SharedFigures/Figures.xcassets/bull-figure-angel-1.imageset/bull-figure-angel-1.png",
+      "status": "modified",
+      "build50_sha256": "8a84a8a24778cea1d725908855d71948a3bbbfb7c291bd300b693421218060cb",
+      "build52_sha256": "52249982b3f38c1ce06d558e7e3723cb9bca4a83bbc803a6efff5868b41c7ff3"
+    },
+    {
+      "path": "SharedFigures/Figures.xcassets/bull-figure-angel-2.imageset/bull-figure-angel-2.png",
+      "status": "modified",
+      "build50_sha256": "922d4c24cdbfaf6c1859d6953e093a9e86bd5a26a6113c37fbc47cd308155057",
+      "build52_sha256": "48f9aab8d28c9139dedbab115fd113e397a4ace218410d3a91dc40ad097e4778"
+    },
+    {
+      "path": "SharedFigures/Figures.xcassets/bull-figure-angel-3.imageset/bull-figure-angel-3.png",
+      "status": "modified",
+      "build50_sha256": "4d8a083d01eb9685e3f9504ab2bb6bcd40507513cc5b11ffa6eef38da80ccbc9",
+      "build52_sha256": "76432dedc17302a39d80d86e9f3491a301fbc8be95cc7aeaa80c90bc62e6c7fc"
+    },
+    {
+      "path": "SharedFigures/Figures.xcassets/bull-figure-angel-4.imageset/bull-figure-angel-4.png",
+      "status": "modified",
+      "build50_sha256": "9dcf93e204d867be3f0d15b30d9db0f041999ef762c5e31c3b62a4f94b03eac2",
+      "build52_sha256": "416aee81d9edb5e80680c717534f6fc83d363e1a75c62e86c9fb4c57105c05a7"
+    },
+    {
+      "path": "SharedFigures/Figures.xcassets/bull-figure-angel-5.imageset/bull-figure-angel-5.png",
+      "status": "modified",
+      "build50_sha256": "dc8dce95b29d0e7abaa23850a5007b862789c1ed63afa5c563f451265764aebe",
+      "build52_sha256": "5bddc511a474e3a05afcbd6b6c7f9cde38c04c1015b10134697c997f2b28405a"
+    },
+    {
+      "path": "SharedFigures/Figures.xcassets/bull-figure-provider-1.imageset/bull-figure-provider-1.png",
+      "status": "modified",
+      "build50_sha256": "9b0623c0fcefae909f04ea8773fa4daac9ad982484e8f9e5b90c4c2df8c61aca",
+      "build52_sha256": "cdac60773c149ce5447e5c4c68c206949c6ea65d2e813ff7ee5ce69904f902a6"
+    },
+    {
+      "path": "SharedFigures/Figures.xcassets/bull-figure-provider-2.imageset/bull-figure-provider-2.png",
+      "status": "modified",
+      "build50_sha256": "bf18b4e5e1e58634a821bef0769cc89034b4a01ae27649db0f15214bb4036886",
+      "build52_sha256": "95245cf79f5001bb92240ace2bcbc824948a5ccfbd7d1931d52b2bd03000462d"
+    },
+    {
+      "path": "SharedFigures/Figures.xcassets/bull-figure-provider-3.imageset/bull-figure-provider-3.png",
+      "status": "modified",
+      "build50_sha256": "7eb76161b1078597d7abefafa236ab71916695398050e9c73e088d5e43459c00",
+      "build52_sha256": "f363d23142c7b48c4c0740bbaf9eaf21dc131ab521c5cc3a0090bd9b86f5bb5d"
+    },
+    {
+      "path": "SharedFigures/Figures.xcassets/bull-figure-provider-4.imageset/bull-figure-provider-4.png",
+      "status": "modified",
+      "build50_sha256": "11d1eca4c7c587d96a6dc303b6cfdfdd737a6a42585301a91e0658a1e2c81a3d",
+      "build52_sha256": "a784276f903d469b6580969f9d85440e18302c66c15ad793dfb42cc9261ed789"
+    },
+    {
+      "path": "SharedFigures/Figures.xcassets/bull-figure-provider-5.imageset/bull-figure-provider-5.png",
+      "status": "modified",
+      "build50_sha256": "0655d07e82a630694cd36fe1fc5faae3b89f83fec4a024523086a8bd74065cc7",
+      "build52_sha256": "0795fcf50ed3b245bfd133cd9766a6ab84c4f921cb45af99089b3fe452d9a18a"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+Bull Native v3.4 build 50 — changed/new files since build 49
+
+README.md
+Bull.xcodeproj/project.pbxproj
+Bull/Components.swift
+Bull/ContentView.swift
+Bull/TodayView.swift
+Bull/WidgetSnapshotBridge.swift
+BullWidgets/BullWidgets.swift
+BullWidgets/Info.plist
+BullTests/Build50FigureTests.swift
+SharedFigures/BullFigureArtwork.swift
+SharedFigures/Figures.xcassets/**
+Handover/Approved-Figures/**
+Handover/BUILD50-CHANGES-AND-TESTING.md
+Handover/BUILD50-CHANGED-FILES.txt
+Handover/BUILD50-FIGURE-WIDGET-PREVIEW.png
+Handover/BUILD50-INTEGRATION-DRAFT.md
+Handover/BUILD50-STATIC-VALIDATION.txt
+Handover/README-FIRST.md
+Handover/extract_approved_figures.py
+Handover/install_figure_assets.py
+Handover/render_build50_widget_preview.py
+Handover/validate_build50.py
+
+This is an overlay package: copy it onto a build-49 project, preserving the
+relative paths. No build-49 file is deleted. The complete project archive is
+preferred for ordinary handover.

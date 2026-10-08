@@ -1,0 +1,92 @@
+{
+  "score_bands": [
+    "0\u2013<20",
+    "20\u2013<40",
+    "40\u2013<60",
+    "60\u2013<80",
+    "80\u2013100"
+  ],
+  "method": "Local background extraction; RGB interiors from approved sources, edge cleanup and resizing; no character redesign. Sorcerer visual strength decreases across ascending stage numbers.",
+  "figures": [
+    {
+      "family": "titan",
+      "stage": 1,
+      "source": "Handover/Approved-Figure-Sources/titan-1.png",
+      "asset": "SharedFigures/Figures.xcassets/bull-figure-provider-1.imageset/bull-figure-provider-1.png",
+      "source_sha256": "193cc2c37f3ba714ab2692cb0b8eb3c8dfa3eaa7ddc27887a582b4a6e62bedb6",
+      "asset_sha256": "cdac60773c149ce5447e5c4c68c206949c6ea65d2e813ff7ee5ce69904f902a6"
+    },
+    {
+      "family": "titan",
+      "stage": 2,
+      "source": "Handover/Approved-Figure-Sources/titan-2.png",
+      "asset": "SharedFigures/Figures.xcassets/bull-figure-provider-2.imageset/bull-figure-provider-2.png",
+      "source_sha256": "fe30bdff378465c3f55db78f438cfaa24cdeb361908f2a785b3d3eadc44f9f89",
+      "asset_sha256": "95245cf79f5001bb92240ace2bcbc824948a5ccfbd7d1931d52b2bd03000462d"
+    },
+    {
+      "family": "titan",
+      "stage": 3,
+      "source": "Handover/Approved-Figure-Sources/titan-3.png",
+      "asset": "SharedFigures/Figures.xcassets/bull-figure-provider-3.imageset/bull-figure-provider-3.png",
+      "source_sha256": "221a63c73520b1f236972d4e7fc93e715d5b9b283929adbc7d1dbfcdcce87509",
+      "asset_sha256": "f363d23142c7b48c4c0740bbaf9eaf21dc131ab521c5cc3a0090bd9b86f5bb5d"
+    },
+    {
+      "family": "titan",
+      "stage": 4,
+      "source": "Handover/Approved-Figure-Sources/titan-4.png",
+      "asset": "SharedFigures/Figures.xcassets/bull-figure-provider-4.imageset/bull-figure-provider-4.png",
+      "source_sha256": "02ae25fd7ce7705b535984f324d1089e09e33bf063f746bc9872e2b4d3fa0578",
+      "asset_sha256": "a784276f903d469b6580969f9d85440e18302c66c15ad793dfb42cc9261ed789"
+    },
+    {
+      "family": "titan",
+      "stage": 5,
+      "source": "Handover/Approved-Figure-Sources/titan-5.png",
+      "asset": "SharedFigures/Figures.xcassets/bull-figure-provider-5.imageset/bull-figure-provider-5.png",
+      "source_sha256": "11b334230edfc777b9db78039f5e5e565211baf6f9e63d498734b5b1445c883b",
+      "asset_sha256": "0795fcf50ed3b245bfd133cd9766a6ab84c4f921cb45af99089b3fe452d9a18a"
+    },
+    {
+      "family": "sorcerer",
+      "stage": 1,
+      "source": "Handover/Approved-Figure-Sources/sorcerer-1.png",
+      "asset": "SharedFigures/Figures.xcassets/bull-figure-angel-1.imageset/bull-figure-angel-1.png",
+      "source_sha256": "cce2fbeecd4866480b11747fb139bbb27d2bf8e13a71dc826aab3010f4a6511e",
+      "asset_sha256": "52249982b3f38c1ce06d558e7e3723cb9bca4a83bbc803a6efff5868b41c7ff3"
+    },
+    {
+      "family": "sorcerer",
+      "stage": 2,
+      "source": "Handover/Approved-Figure-Sources/sorcerer-2.png",
+      "asset": "SharedFigures/Figures.xcassets/bull-figure-angel-2.imageset/bull-figure-angel-2.png",
+      "source_sha256": "f1c542b1b1c3931f3850dce39acde53091382503471d6ad5e7076eeeed0cac45",
+      "asset_sha256": "48f9aab8d28c9139dedbab115fd113e397a4ace218410d3a91dc40ad097e4778"
+    },
+    {
+      "family": "sorcerer",
+      "stage": 3,
+      "source": "Handover/Approved-Figure-Sources/sorcerer-3.png",
+      "asset": "SharedFigures/Figures.xcassets/bull-figure-angel-3.imageset/bull-figure-angel-3.png",
+      "source_sha256": "4cab87d6b5668527095997b78ad7d79b68a612d751c186ebfbf51eab4c8bd8f6",
+      "asset_sha256": "76432dedc17302a39d80d86e9f3491a301fbc8be95cc7aeaa80c90bc62e6c7fc"
+    },
+    {
+      "family": "sorcerer",
+      "stage": 4,
+      "source": "Handover/Approved-Figure-Sources/sorcerer-4.png",
+      "asset": "SharedFigures/Figures.xcassets/bull-figure-angel-4.imageset/bull-figure-angel-4.png",
+      "source_sha256": "8ed425548e80eb12e8bf7b4ff48bacae86240391b1d6b5c49561c7091ce21d12",
+      "asset_sha256": "416aee81d9edb5e80680c717534f6fc83d363e1a75c62e86c9fb4c57105c05a7"
+    },
+    {
+      "family": "sorcerer",
+      "stage": 5,
+      "source": "Handover/Approved-Figure-Sources/sorcerer-5.png",
+      "asset": "SharedFigures/Figures.xcassets/bull-figure-angel-5.imageset/bull-figure-angel-5.png",
+      "source_sha256": "315fbe633d35ec46d551eeb11075a260d2799da17540a32b1cc2dfd53dbd156c",
+      "asset_sha256": "5bddc511a474e3a05afcbd6b6c7f9cde38c04c1015b10134697c997f2b28405a"
+    }
+  ]
+}
